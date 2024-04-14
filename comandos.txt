@@ -1,0 +1,12 @@
+- Como criar o ambiente de visualização: 
+sudo apt install python3.10-venv
+python3 -m venv ./
+source bin/activate #entrar no ambiente
+deactivate # sair do ambiente
+jupyter lab #ativar jupyter
+panel serve dashboard.py --autoreload
+
+
+- Documentação biblioteca panel (que está gerando o dashboard)
+https://panel.holoviz.org/
+https://www.youtube.com/watch?v=uhxiXOTKzfs
