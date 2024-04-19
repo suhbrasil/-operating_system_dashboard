@@ -6,6 +6,8 @@ import numpy as np
 import panel as pn
 import array as arr
 from process import *
+import tkinter as tk
+from pandastable import Table, TableModel
 pn.extension('tabulator')
 
 import hvplot.pandas
@@ -17,6 +19,7 @@ class ProcessInfo(ctypes.Structure):
                 ("status", ctypes.c_char * 16)]
 
 libc = ctypes.CDLL(None)
+pd.set_option('future.no_silent_downcasting', True)
 
 def get_all_processes():
     processes = []
@@ -43,10 +46,14 @@ processes = get_all_processes()
 df = pd.DataFrame.from_dict(processes)
 df_pane = pn.widgets.DataFrame(df, autosize_mode='fit_columns', width=400)
 df_pane
-template = pn.template.EditableTemplate(
-    editable=True,
-    title='Dashboard',
-    sidebar=[df],
-    meta_refresh="5",
-)
-template.servable();
+
+janela = tk.Tk()
+janela.title("Dashboard")
+
+frame = tk.Frame(janela)
+frame.pack()
+
+pt = Table(frame, dataframe=df, showtoolbar=True, showstatusbar=True)
+pt.show()
+
+janela.mainloop()

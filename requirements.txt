@@ -1,0 +1,6 @@
+pandas
+numpy
+panel
+tk
+pandastable
+hvplot
