@@ -84,6 +84,10 @@ class App(customtkinter.CTk):
         for index, row in df.iterrows():
             self.mem_table.insert("", "end", values=(index, row['Value']))
         
+        mem_percentage = self.get_memory_usage()
+        self.memory.delete("1.0", tkinter.END)
+        self.memory.insert("end", f"Uso da Memória:\n{mem_percentage:.2f}%\n", "center")
+        
         self.after(1000, self.update_memory_tab)
 
     def get_memory_usage(self):
@@ -109,7 +113,7 @@ class App(customtkinter.CTk):
 
     def memory_tab(self):  
         self.mem_table = ttk.Treeview(self.tabview.tab("Memória"), columns=("Memória", "Valor"), show="headings")     
-        self.mem_table.grid(row=0, column=0, padx=0, pady=0, sticky="nsew")
+        self.mem_table.grid(row=0, column=0, rowspan=2, padx=0, pady=0, sticky="nsew")
         self.mem_table.column("Memória", anchor="center", width=220)
         self.mem_table.column("Valor", anchor="center", width=220)
         self.mem_table.heading("Memória", text="Memória")
@@ -119,7 +123,7 @@ class App(customtkinter.CTk):
         for key, value in meminfo.items():
             self.mem_table.insert("", "end", values=(key, value))
 
-        self.figure_mem = Figure(figsize=(8, 5), dpi=100)
+        self.figure_mem = Figure(figsize=(7, 4), dpi=100)
         self.ax_mem = self.figure_mem.add_subplot(111)
         # format the x-axis to show the time
         self.myFmt = mdates.DateFormatter("%S")
@@ -135,8 +139,12 @@ class App(customtkinter.CTk):
         self.ax_mem.set_xlim(self.x_data_mem[0], self.x_data_mem[-1])
 
         self.canvas_mem = FigureCanvasTkAgg(self.figure_mem, self.tabview.tab("Memória"))
-        self.canvas_mem.get_tk_widget().grid(row=0, column=1, padx=(20, 0), pady=(20, 0), sticky="nsew")
+        self.canvas_mem.get_tk_widget().grid(row=0, column=1, columnspan=3, padx=(5, 0), pady=(5, 0), sticky="nsew")
         self.animate_memory()
+
+        self.memory = customtkinter.CTkTextbox(self.tabview.tab("Memória"), font=("Monserrat", 18))
+        self.memory.grid(row=1, column=1, columnspan=1, padx=(5, 0), pady=(5, 0), sticky="nsew")
+        self.memory.tag_config("center", justify="center")
 
         self.after(1000, self.update_memory_tab)
     
@@ -203,16 +211,16 @@ class App(customtkinter.CTk):
         self.canvas.get_tk_widget().grid(row=0, column=0, columnspan=4, padx=(20, 0), pady=(20, 0), sticky="nsew")
         self.animate()
 
-        self.cpu = customtkinter.CTkTextbox(self.tabview.tab("Dados globais"), font=("Monserrat", 18))
+        self.cpu = customtkinter.CTkTextbox(self.tabview.tab("Dados globais"), font=("Monserrat", 16))
         self.cpu.grid(row=1, column=0,padx=(10, 0), pady=(10, 0), sticky="nsew")
         self.cpu.tag_config("center", justify="center")
-        self.idle = customtkinter.CTkTextbox(self.tabview.tab("Dados globais"), font=("Montserrat", 18))
+        self.idle = customtkinter.CTkTextbox(self.tabview.tab("Dados globais"), font=("Montserrat", 16))
         self.idle.grid(row=1, column=1,padx=(10, 0), pady=(10, 0), sticky="nsew")
         self.idle.tag_config("center", justify="center")
-        self.process = customtkinter.CTkTextbox(self.tabview.tab("Dados globais"), font=("Montserrat", 18))
+        self.process = customtkinter.CTkTextbox(self.tabview.tab("Dados globais"), font=("Montserrat", 16))
         self.process.grid(row=1, column=2,padx=(10, 0), pady=(10, 0), sticky="nsew")
         self.process.tag_config("center", justify="center")
-        self.threads = customtkinter.CTkTextbox(self.tabview.tab("Dados globais"), font=("Montserrat", 18))
+        self.threads = customtkinter.CTkTextbox(self.tabview.tab("Dados globais"), font=("Montserrat", 16))
         self.threads.grid(row=1, column=3,padx=(10, 0), pady=(10, 0), sticky="nsew")
         self.threads.tag_config("center", justify="center")
 
@@ -224,13 +232,13 @@ class App(customtkinter.CTk):
         idle_percentage = 100.0 - cpu_percentage
         total_process, total_threads = self.get_total_processes_and_threads()
         self.cpu.delete("1.0", tkinter.END)
-        self.cpu.insert("end", f"Uso da CPU: {cpu_percentage:.2f}%\n", "center")
+        self.cpu.insert("end", f"Uso da CPU:\n{cpu_percentage:.2f}%\n", "center")
         self.idle.delete("1.0", tkinter.END)
-        self.idle.insert("end", f"Tempo ocioso: {idle_percentage:.2f}%\n", "center")
+        self.idle.insert("end", f"Tempo ocioso:\n{idle_percentage:.2f}%\n", "center")
         self.process.delete("1.0", tkinter.END)
-        self.process.insert("end", f"Quantidade de processos: {total_process: }\n", "center")
+        self.process.insert("end", f"Quantidade de processos:\n{total_process: }\n", "center")
         self.threads.delete("1.0", tkinter.END)
-        self.threads.insert("end", f"Quantidade de threads: {total_threads: }\n", "center")
+        self.threads.insert("end", f"Quantidade de threads:\n{total_threads: }\n", "center")
 
 
         # Schedule the method to update the CPU percentage again after 1 second
