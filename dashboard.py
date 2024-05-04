@@ -78,7 +78,76 @@ class App(customtkinter.CTk):
         self.global_data_tab()
         self.memory_tab()
 
+    def update_memory_tab(self):
+        meminfo = self.get_mem_info()
+        df = pd.DataFrame.from_dict(meminfo, orient='index', columns=['Value'])
+        self.mem_table.delete(*self.mem_table.get_children())  # Clear existing data
+        for index, row in df.iterrows():
+            self.mem_table.insert("", "end", values=(index, row['Value']))
+        
+        mem_percentage = self.get_memory_usage()
+        self.memory.delete("1.0", tkinter.END)
+        self.memory.insert("end", f"Uso da Memória:\n{mem_percentage:.2f}%\n", "center")
+        
+        self.after(1000, self.update_memory_tab)
 
+    def get_memory_usage(self):
+        mem_usage = self.get_mem_info()
+        mem_total = mem_usage['MemTotal']
+        mem_free = mem_usage['MemFree']
+        mem_usage = 100 - (mem_free / mem_total) * 100
+        return mem_usage
+
+    def animate_memory(self):
+        # append new data point to the x and y data
+        self.x_data_mem.append(datetime.now())
+        self.y_data_mem.append(self.get_memory_usage())
+        # remove oldest data point
+        self.x_data_mem = self.x_data_mem[1:]
+        self.y_data_mem = self.y_data_mem[1:]
+        #  update plot data
+        self.plot_mem.set_xdata(self.x_data_mem)
+        self.plot_mem.set_ydata(self.y_data_mem)
+        self.ax_mem.set_xlim(self.x_data_mem[0], self.x_data_mem[-1])
+        self.canvas_mem.draw_idle()  # redraw plot
+        self.after(1000, self.animate_memory)  # repeat after 1s
+
+    def memory_tab(self):  
+        self.mem_table = ttk.Treeview(self.tabview.tab("Memória"), columns=("Memória", "Valor"), show="headings")     
+        self.mem_table.grid(row=0, column=0, rowspan=2, padx=0, pady=0, sticky="nsew")
+        self.mem_table.column("Memória", anchor="center", width=220)
+        self.mem_table.column("Valor", anchor="center", width=220)
+        self.mem_table.heading("Memória", text="Memória")
+        self.mem_table.heading("Valor", text="Valor")
+
+        meminfo = self.get_mem_info()
+        for key, value in meminfo.items():
+            self.mem_table.insert("", "end", values=(key, value))
+
+        self.figure_mem = Figure(figsize=(7, 4), dpi=100)
+        self.ax_mem = self.figure_mem.add_subplot(111)
+        # format the x-axis to show the time
+        self.myFmt = mdates.DateFormatter("%S")
+        self.ax_mem.xaxis.set_major_formatter(self.myFmt)
+
+        # initial x and y data
+        dateTimeObj = datetime.now() + timedelta(seconds=-30)
+        self.x_data_mem = [dateTimeObj + timedelta(seconds=i) for i in range(30)]
+        self.y_data_mem = [0 for i in range(30)]
+        # create the plot
+        self.plot_mem = self.ax_mem.plot(self.x_data_mem, self.y_data_mem, label='Memória')[0]
+        self.ax_mem.set_ylim(0, 100)
+        self.ax_mem.set_xlim(self.x_data_mem[0], self.x_data_mem[-1])
+
+        self.canvas_mem = FigureCanvasTkAgg(self.figure_mem, self.tabview.tab("Memória"))
+        self.canvas_mem.get_tk_widget().grid(row=0, column=1, columnspan=3, padx=(5, 0), pady=(5, 0), sticky="nsew")
+        self.animate_memory()
+
+        self.memory = customtkinter.CTkTextbox(self.tabview.tab("Memória"), font=("Monserrat", 18))
+        self.memory.grid(row=1, column=1, columnspan=1, padx=(5, 0), pady=(5, 0), sticky="nsew")
+        self.memory.tag_config("center", justify="center")
+
+        self.after(1000, self.update_memory_tab)
     
     def process_tab(self):
         # create treeview table
@@ -119,10 +188,26 @@ class App(customtkinter.CTk):
 
         self.after(5000, self.update_page)
 
+    def animate(self):
+        # append new data point to the x and y data
+        self.x_data.append(datetime.now())
+        self.y_data.append(self.get_cpu_usage())
+        # remove oldest data point
+        self.x_data = self.x_data[1:]
+        self.y_data = self.y_data[1:]
+        #  update plot data
+        self.plot.set_xdata(self.x_data)
+        self.plot.set_ydata(self.y_data)
+        self.ax.set_xlim(self.x_data[0], self.x_data[-1])
+        self.canvas.draw_idle()  # redraw plot
+        self.after(1000, self.animate)  # repeat after 1s
+
     def global_data_tab(self):
+
         self.tabview.tab("Dados globais").grid_columnconfigure((0, 1, 2), weight=1)
         self.tabview.tab("Dados globais").grid_rowconfigure((0, 1, 2), weight=1)
 
+<<<<<<< HEAD
         self.figure = Figure(figsize=(10, 2), dpi=100, facecolor="k")
         self.ax = self.figure.add_subplot(111)
         self.ax.set_facecolor('k')
@@ -148,6 +233,39 @@ class App(customtkinter.CTk):
             # line.set_markeredgewidth(3)
         for line in self.ax.xaxis.get_gridlines():
             line.set_color('w')
+=======
+        self.figure = Figure(figsize=(8, 5), dpi=100)
+        self.ax = self.figure.add_subplot(111)
+        # format the x-axis to show the time
+        self.myFmt = mdates.DateFormatter("%S")
+        self.ax.xaxis.set_major_formatter(self.myFmt)
+
+        # initial x and y data
+        dateTimeObj = datetime.now() + timedelta(seconds=-30)
+        self.x_data = [dateTimeObj + timedelta(seconds=i) for i in range(30)]
+        self.y_data = [0 for i in range(30)]
+        # create the plot
+        self.plot = self.ax.plot(self.x_data, self.y_data, label='CPU')[0]
+        self.ax.set_ylim(0, 100)
+        self.ax.set_xlim(self.x_data[0], self.x_data[-1])
+
+        self.canvas = FigureCanvasTkAgg(self.figure, self.tabview.tab("Dados globais"))
+        self.canvas.get_tk_widget().grid(row=0, column=0, columnspan=4, padx=(20, 0), pady=(20, 0), sticky="nsew")
+        self.animate()
+
+        self.cpu = customtkinter.CTkTextbox(self.tabview.tab("Dados globais"), font=("Monserrat", 16))
+        self.cpu.grid(row=1, column=0,padx=(10, 0), pady=(10, 0), sticky="nsew")
+        self.cpu.tag_config("center", justify="center")
+        self.idle = customtkinter.CTkTextbox(self.tabview.tab("Dados globais"), font=("Montserrat", 16))
+        self.idle.grid(row=1, column=1,padx=(10, 0), pady=(10, 0), sticky="nsew")
+        self.idle.tag_config("center", justify="center")
+        self.process = customtkinter.CTkTextbox(self.tabview.tab("Dados globais"), font=("Montserrat", 16))
+        self.process.grid(row=1, column=2,padx=(10, 0), pady=(10, 0), sticky="nsew")
+        self.process.tag_config("center", justify="center")
+        self.threads = customtkinter.CTkTextbox(self.tabview.tab("Dados globais"), font=("Montserrat", 16))
+        self.threads.grid(row=1, column=3,padx=(10, 0), pady=(10, 0), sticky="nsew")
+        self.threads.tag_config("center", justify="center")
+>>>>>>> 6be5ac66e9615e145a7a9dfcaab46f5f9c1e1067
 
         for line in self.ax.yaxis.get_gridlines():
             line.set_color('w')
@@ -363,6 +481,7 @@ class App(customtkinter.CTk):
         idle_percentage = 100.0 - cpu_percentage
         total_process, total_threads = self.get_total_processes_and_threads()
         self.cpu.delete("1.0", tkinter.END)
+<<<<<<< HEAD
         self.cpu.insert("0.0", f"Uso da CPU: {cpu_percentage:.2f}%\n", "center")
         self.idle.delete("1.0", tkinter.END)
         self.idle.insert("0.0", f"Tempo ocioso: {idle_percentage:.2f}%\n", "center")
@@ -370,6 +489,15 @@ class App(customtkinter.CTk):
         self.process.insert("0.0", f"Quantidade de processos: {total_process: }\n", "center")
         self.threads.delete("1.0", tkinter.END)
         self.threads.insert("0.0", f"Quantidade de threads: {total_threads: }\n", "center")
+=======
+        self.cpu.insert("end", f"Uso da CPU:\n{cpu_percentage:.2f}%\n", "center")
+        self.idle.delete("1.0", tkinter.END)
+        self.idle.insert("end", f"Tempo ocioso:\n{idle_percentage:.2f}%\n", "center")
+        self.process.delete("1.0", tkinter.END)
+        self.process.insert("end", f"Quantidade de processos:\n{total_process: }\n", "center")
+        self.threads.delete("1.0", tkinter.END)
+        self.threads.insert("end", f"Quantidade de threads:\n{total_threads: }\n", "center")
+>>>>>>> 6be5ac66e9615e145a7a9dfcaab46f5f9c1e1067
 
         # Schedule the next update after 1 second
         self.after(1000, self.update_global_data)
@@ -507,6 +635,16 @@ class App(customtkinter.CTk):
                     
         return total_processes, total_threads
 
+    def get_mem_info(self):
+        meminfo = {}
+        with open('/proc/meminfo') as f:
+            for line in f:
+                parts = line.split(':')
+                if len(parts) == 2:
+                    key = parts[0].strip()
+                    value = parts[1].split()[0].strip()
+                    meminfo[key] = int(value)
+        return meminfo
 
 
     def update_page(self):
