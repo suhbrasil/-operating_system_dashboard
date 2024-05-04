@@ -78,76 +78,7 @@ class App(customtkinter.CTk):
         self.global_data_tab()
         self.memory_tab()
 
-    def update_memory_tab(self):
-        meminfo = self.get_mem_info()
-        df = pd.DataFrame.from_dict(meminfo, orient='index', columns=['Value'])
-        self.mem_table.delete(*self.mem_table.get_children())  # Clear existing data
-        for index, row in df.iterrows():
-            self.mem_table.insert("", "end", values=(index, row['Value']))
-        
-        mem_percentage = self.get_memory_usage()
-        self.memory.delete("1.0", tkinter.END)
-        self.memory.insert("end", f"Uso da Memória:\n{mem_percentage:.2f}%\n", "center")
-        
-        self.after(1000, self.update_memory_tab)
 
-    def get_memory_usage(self):
-        mem_usage = self.get_mem_info()
-        mem_total = mem_usage['MemTotal']
-        mem_free = mem_usage['MemFree']
-        mem_usage = 100 - (mem_free / mem_total) * 100
-        return mem_usage
-
-    def animate_memory(self):
-        # append new data point to the x and y data
-        self.x_data_mem.append(datetime.now())
-        self.y_data_mem.append(self.get_memory_usage())
-        # remove oldest data point
-        self.x_data_mem = self.x_data_mem[1:]
-        self.y_data_mem = self.y_data_mem[1:]
-        #  update plot data
-        self.plot_mem.set_xdata(self.x_data_mem)
-        self.plot_mem.set_ydata(self.y_data_mem)
-        self.ax_mem.set_xlim(self.x_data_mem[0], self.x_data_mem[-1])
-        self.canvas_mem.draw_idle()  # redraw plot
-        self.after(1000, self.animate_memory)  # repeat after 1s
-
-    def memory_tab(self):  
-        self.mem_table = ttk.Treeview(self.tabview.tab("Memória"), columns=("Memória", "Valor"), show="headings")     
-        self.mem_table.grid(row=0, column=0, rowspan=2, padx=0, pady=0, sticky="nsew")
-        self.mem_table.column("Memória", anchor="center", width=220)
-        self.mem_table.column("Valor", anchor="center", width=220)
-        self.mem_table.heading("Memória", text="Memória")
-        self.mem_table.heading("Valor", text="Valor")
-
-        meminfo = self.get_mem_info()
-        for key, value in meminfo.items():
-            self.mem_table.insert("", "end", values=(key, value))
-
-        self.figure_mem = Figure(figsize=(7, 4), dpi=100)
-        self.ax_mem = self.figure_mem.add_subplot(111)
-        # format the x-axis to show the time
-        self.myFmt = mdates.DateFormatter("%S")
-        self.ax_mem.xaxis.set_major_formatter(self.myFmt)
-
-        # initial x and y data
-        dateTimeObj = datetime.now() + timedelta(seconds=-30)
-        self.x_data_mem = [dateTimeObj + timedelta(seconds=i) for i in range(30)]
-        self.y_data_mem = [0 for i in range(30)]
-        # create the plot
-        self.plot_mem = self.ax_mem.plot(self.x_data_mem, self.y_data_mem, label='Memória')[0]
-        self.ax_mem.set_ylim(0, 100)
-        self.ax_mem.set_xlim(self.x_data_mem[0], self.x_data_mem[-1])
-
-        self.canvas_mem = FigureCanvasTkAgg(self.figure_mem, self.tabview.tab("Memória"))
-        self.canvas_mem.get_tk_widget().grid(row=0, column=1, columnspan=3, padx=(5, 0), pady=(5, 0), sticky="nsew")
-        self.animate_memory()
-
-        self.memory = customtkinter.CTkTextbox(self.tabview.tab("Memória"), font=("Monserrat", 18))
-        self.memory.grid(row=1, column=1, columnspan=1, padx=(5, 0), pady=(5, 0), sticky="nsew")
-        self.memory.tag_config("center", justify="center")
-
-        self.after(1000, self.update_memory_tab)
     
     def process_tab(self):
         # create treeview table
@@ -188,22 +119,7 @@ class App(customtkinter.CTk):
 
         self.after(5000, self.update_page)
 
-    def animate(self):
-        # append new data point to the x and y data
-        self.x_data.append(datetime.now())
-        self.y_data.append(self.get_cpu_usage())
-        # remove oldest data point
-        self.x_data = self.x_data[1:]
-        self.y_data = self.y_data[1:]
-        #  update plot data
-        self.plot.set_xdata(self.x_data)
-        self.plot.set_ydata(self.y_data)
-        self.ax.set_xlim(self.x_data[0], self.x_data[-1])
-        self.canvas.draw_idle()  # redraw plot
-        self.after(1000, self.animate)  # repeat after 1s
-
     def global_data_tab(self):
-
         self.tabview.tab("Dados globais").grid_columnconfigure((0, 1, 2), weight=1)
         self.tabview.tab("Dados globais").grid_rowconfigure((0, 1, 2), weight=1)
 
@@ -591,16 +507,6 @@ class App(customtkinter.CTk):
                     
         return total_processes, total_threads
 
-    def get_mem_info(self):
-        meminfo = {}
-        with open('/proc/meminfo') as f:
-            for line in f:
-                parts = line.split(':')
-                if len(parts) == 2:
-                    key = parts[0].strip()
-                    value = parts[1].split()[0].strip()
-                    meminfo[key] = int(value)
-        return meminfo
 
 
     def update_page(self):
