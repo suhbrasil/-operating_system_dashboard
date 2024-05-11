@@ -9,6 +9,7 @@ class Controller:
         meminfo = self.model.get_memory_info()
         processes, threads = self.model.get_processes_and_threads()
 
+        self.view.set_click_callback(self.handle_click)
         self.view.memory_tab(meminfo)
         self.view.process_tab(processes, threads)
         self.view.global_data_tab()
@@ -27,6 +28,13 @@ class Controller:
             self.view.update_process(processes, threads)
 
             time.sleep(1)  # Atualiza os dados a cada segundo
+    
+    def handle_click(self, item_id):
+        threads = self.model.get_threads(item_id)
+        process_memory = self.model.get_process_memory(item_id)
+        page_usage = self.model.get_page_usage(item_id)
+
+        self.view.open_popup(item_id, threads, process_memory, page_usage)
 
     def start(self):
         # Inicia a thread para adquirir dados
