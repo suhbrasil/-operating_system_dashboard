@@ -5,6 +5,7 @@
 #import customtkinter
 
 import tkinter
+from tkinter import *
 import tkinter.messagebox
 from tkinter import ttk
 import customtkinter
@@ -78,8 +79,24 @@ class App(customtkinter.CTk):
         self.global_data_tab()
         self.memory_tab()
 
-
-    
+    def open_popup(self, item_id):
+        top = Toplevel()
+        top.geometry("400x400")
+        top.title(item_id)
+        top.popup_table = ttk.Treeview(top, columns=("ID", "Usuário", "Nome", "Status"), show="headings")
+        top.popup_table.column("ID", anchor="center", width=100)
+        top.popup_table.column("Usuário", anchor="center", width=100)
+        top.popup_table.column("Nome", anchor="center", width=100)
+        top.popup_table.column("Status", anchor="center", width=100)
+        top.popup_table.heading("ID", text="ID")
+        top.popup_table.heading("Usuário", text="Usuário")
+        top.popup_table.heading("Nome", text="Nome")
+        top.popup_table.heading("Status", text="Status")
+        top.popup_table.grid(row=0, column=0, padx=0, pady=0, sticky="nsew")  # Add sticky="nsew" to make it expand
+        threads = self.get_threads(item_id)
+        for thread in threads:
+            top.popup_table.insert("", "end", values=(thread['ID'], thread['Usuário'], thread['Nome'], thread['Status']))
+        
     def process_tab(self):
         # create treeview table
         self.table = ttk.Treeview(self.tabview.tab("Processos"), columns=("Num", "ID", "Usuário", "Nome", "Status"), show="headings")
@@ -109,7 +126,6 @@ class App(customtkinter.CTk):
 
         # Bind the click event to toggle the node (process) expansion
         self.table.bind("<Button-1>", self.toggle_process)
-
         
         self.table.grid(row=0, column=0, padx=0, pady=0, sticky="nsew")  # Add sticky="nsew" to make it expand
 
@@ -329,10 +345,7 @@ class App(customtkinter.CTk):
 
     def toggle_process(self, event):
         item_id = self.table.identify_row(event.y)
-        current_value = self.table.set(item_id, "Num")
-        new_value = "▼" if current_value == "▶" else "▶"
-        self.table.set(item_id, "Num", value=new_value)
-        self.table.item(item_id, open=not self.table.item(item_id, "open"))
+        self.open_popup(item_id)
 
     def update_global_data(self):
         cpu_percentage = self.get_cpu_usage()
