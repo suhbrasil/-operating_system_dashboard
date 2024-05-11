@@ -5,6 +5,7 @@
 #import customtkinter
 
 import tkinter
+from tkinter import *
 import tkinter.messagebox
 from tkinter import ttk
 import customtkinter
@@ -78,8 +79,74 @@ class App(customtkinter.CTk):
         self.global_data_tab()
         self.memory_tab()
 
-
+    def get_process_memory(self, pid):
+        process_memory = {}
+        try:
+            with open(os.path.join('/proc', pid, 'status')) as f:
+                for line in f:
+                    if line.startswith('VmRSS:'):
+                        memory = line.split()[1]  # memory in kB
+                        process_memory = int(memory)
+                        break
+        except FileNotFoundError:
+            pass  # process has already terminated
+        return process_memory
     
+    def get_page_usage(self, pid):
+        page_usage = {'total': 0, 'code': 0, 'heap': 0, 'stack': 0}
+        try:
+            with open(f'/proc/{pid}/smaps', 'r') as f:
+                for line in f:
+                    if 'Size:' in line:
+                        page_usage['total'] += int(line.split()[1])
+                    elif '[heap]' in line:
+                        page_usage['heap'] += int(next(f).split()[1])
+                    elif '[stack]' in line:
+                        page_usage['stack'] += int(next(f).split()[1])
+                    elif '.text' in line:
+                        page_usage['code'] += int(next(f).split()[1])
+        except FileNotFoundError:
+            pass  # process has already terminated
+        return page_usage
+
+    def open_popup(self, item_id):
+        top = Toplevel()
+        top.geometry("800x400")
+        top.title(item_id)
+
+        top.popup_table = ttk.Treeview(top, columns=("ID", "Usuário", "Nome", "Status"), show="headings")
+        top.popup_table.column("ID", anchor="center", width=200)
+        top.popup_table.column("Usuário", anchor="center", width=200)
+        top.popup_table.column("Nome", anchor="center", width=200)
+        top.popup_table.column("Status", anchor="center", width=200)
+        top.popup_table.heading("ID", text="ID")
+        top.popup_table.heading("Usuário", text="Usuário")
+        top.popup_table.heading("Nome", text="Nome")
+        top.popup_table.heading("Status", text="Status")
+        top.popup_table.grid(row=0, column=0, columnspan=2, padx=0, pady=0, sticky="nsew")  # Add sticky="nsew" to make it expand
+        threads = self.get_threads(item_id)
+        for thread in threads:
+            top.popup_table.insert("", "end", values=(thread['ID'], thread['Usuário'], thread['Nome'], thread['Status']))
+
+        process_memory = self.get_process_memory(item_id)
+        top.memory_usage = customtkinter.CTkTextbox(top, font=("Monserrat", 15))
+        top.memory_usage.grid(row=1, column=0, columnspan=1, padx=(5, 0), pady=(5, 0), sticky="nsew")
+        top.memory_usage.tag_config("center", justify="center")
+        if process_memory:
+            top.memory_usage.insert("end", f"Uso da Memória:\n{process_memory:} kB\n", "center")
+        else:
+            top.memory_usage.insert("end", "Uso da Memória:\n0 kB\n", "center")
+
+        try:
+            page_usage = self.get_page_usage(item_id)
+        except:
+            page_usage = {'total': 0, 'code': 0, 'heap': 0, 'stack': 0}
+        top.page_usage = customtkinter.CTkTextbox(top, font=("Monserrat", 15))
+        top.page_usage.grid(row=1, column=1, columnspan=1, padx=(5, 0), pady=(5, 0), sticky="nsew")
+        top.page_usage.tag_config("center", justify="center")
+        top.page_usage.insert("end", f"Uso de páginas:\nTotal: {page_usage['total']} kB\nCódigo: {page_usage['code']} kB\nHeap: {page_usage['heap']} kB\nStack: {page_usage['stack']} kB\n", "center")
+        
+
     def process_tab(self):
         # create treeview table
         self.table = ttk.Treeview(self.tabview.tab("Processos"), columns=("Num", "ID", "Usuário", "Nome", "Status"), show="headings")
@@ -109,7 +176,6 @@ class App(customtkinter.CTk):
 
         # Bind the click event to toggle the node (process) expansion
         self.table.bind("<Button-1>", self.toggle_process)
-
         
         self.table.grid(row=0, column=0, padx=0, pady=0, sticky="nsew")  # Add sticky="nsew" to make it expand
 
@@ -329,10 +395,7 @@ class App(customtkinter.CTk):
 
     def toggle_process(self, event):
         item_id = self.table.identify_row(event.y)
-        current_value = self.table.set(item_id, "Num")
-        new_value = "▼" if current_value == "▶" else "▶"
-        self.table.set(item_id, "Num", value=new_value)
-        self.table.item(item_id, open=not self.table.item(item_id, "open"))
+        self.open_popup(item_id)
 
     def update_global_data(self):
         cpu_percentage = self.get_cpu_usage()
