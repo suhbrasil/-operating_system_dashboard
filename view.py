@@ -92,6 +92,24 @@ class View(customtkinter.CTk):
         top.page_usage.tag_config("center", justify="center")
         top.page_usage.insert("end", f"Uso de páginas:\nTotal: {page_usage['total']} kB\nCódigo: {page_usage['code']} kB\nHeap: {page_usage['heap']} kB\nStack: {page_usage['stack']} kB\n", "center")
 
+        top.after(1000, lambda: self.update_popup(top, item_id, threads, process_memory, page_usage))
+
+    def update_popup(self, top, item_id, threads, process_memory, page_usage):
+        top.geometry("800x400")
+        top.title(item_id)
+
+        top.popup_table.delete(*top.popup_table.get_children())
+        for thread in threads:
+            top.popup_table.insert("", "end", values=(thread['ID'], thread['Usuário'], thread['Nome'], thread['Status']))
+        
+        top.memory_usage.delete("1.0", tkinter.END)
+        if process_memory:
+            top.memory_usage.insert("end", f"Uso da Memória:\n{process_memory:} kB\n", "center")
+        else:
+            top.memory_usage.insert("end", "Uso da Memória:\n0 kB\n", "center")
+        
+        top.page_usage.delete("1.0", tkinter.END)
+        top.page_usage.insert("end", f"Uso de páginas:\nTotal: {page_usage['total']} kB\nCódigo: {page_usage['code']} kB\nHeap: {page_usage['heap']} kB\nStack: {page_usage['stack']} kB\n", "center")
 
     def process_tab(self, processes, threads):
         # create treeview table
