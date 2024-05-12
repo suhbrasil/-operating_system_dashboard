@@ -1,4 +1,5 @@
 import tkinter
+from tkinter import *
 import tkinter.messagebox
 from tkinter import ttk
 import customtkinter
@@ -60,6 +61,55 @@ class View(customtkinter.CTk):
         self.tabview.add("Memória")
         self.tabview.pack()
 
+    def open_popup(self, item_id, threads, process_memory, page_usage):
+        top = Toplevel()
+        top.geometry("800x400")
+        top.title(item_id)
+
+        top.popup_table = ttk.Treeview(top, columns=("ID", "Usuário", "Nome", "Status"), show="headings")
+        top.popup_table.column("ID", anchor="center", width=200)
+        top.popup_table.column("Usuário", anchor="center", width=200)
+        top.popup_table.column("Nome", anchor="center", width=200)
+        top.popup_table.column("Status", anchor="center", width=200)
+        top.popup_table.heading("ID", text="ID")
+        top.popup_table.heading("Usuário", text="Usuário")
+        top.popup_table.heading("Nome", text="Nome")
+        top.popup_table.heading("Status", text="Status")
+        top.popup_table.grid(row=0, column=0, columnspan=2, padx=0, pady=0, sticky="nsew")  # Add sticky="nsew" to make it expand
+        for thread in threads:
+            top.popup_table.insert("", "end", values=(thread['ID'], thread['Usuário'], thread['Nome'], thread['Status']))
+
+        top.memory_usage = customtkinter.CTkTextbox(top, font=("Monserrat", 15))
+        top.memory_usage.grid(row=1, column=0, columnspan=1, padx=(5, 0), pady=(5, 0), sticky="nsew")
+        top.memory_usage.tag_config("center", justify="center")
+        if process_memory:
+            top.memory_usage.insert("end", f"Uso da Memória:\n{process_memory:} kB\n", "center")
+        else:
+            top.memory_usage.insert("end", "Uso da Memória:\n0 kB\n", "center")
+
+        top.page_usage = customtkinter.CTkTextbox(top, font=("Monserrat", 15))
+        top.page_usage.grid(row=1, column=1, columnspan=1, padx=(5, 0), pady=(5, 0), sticky="nsew")
+        top.page_usage.tag_config("center", justify="center")
+        top.page_usage.insert("end", f"Uso de páginas:\nTotal: {page_usage['total']} kB\nCódigo: {page_usage['code']} kB\nHeap: {page_usage['heap']} kB\nStack: {page_usage['stack']} kB\n", "center")
+
+        top.after(1000, lambda: self.update_popup(top, item_id, threads, process_memory, page_usage))
+
+    def update_popup(self, top, item_id, threads, process_memory, page_usage):
+        top.geometry("800x400")
+        top.title(item_id)
+
+        top.popup_table.delete(*top.popup_table.get_children())
+        for thread in threads:
+            top.popup_table.insert("", "end", values=(thread['ID'], thread['Usuário'], thread['Nome'], thread['Status']))
+        
+        top.memory_usage.delete("1.0", tkinter.END)
+        if process_memory:
+            top.memory_usage.insert("end", f"Uso da Memória:\n{process_memory:} kB\n", "center")
+        else:
+            top.memory_usage.insert("end", "Uso da Memória:\n0 kB\n", "center")
+        
+        top.page_usage.delete("1.0", tkinter.END)
+        top.page_usage.insert("end", f"Uso de páginas:\nTotal: {page_usage['total']} kB\nCódigo: {page_usage['code']} kB\nHeap: {page_usage['heap']} kB\nStack: {page_usage['stack']} kB\n", "center")
 
     def process_tab(self, processes, threads):
         # create treeview table
@@ -92,8 +142,7 @@ class View(customtkinter.CTk):
             self.table.item(process_id, open=False)  # Start with threads collapsed
 
         # Bind the click event to toggle the node (process) expansion
-        self.table.bind("<Button-1>", self.toggle_process)
-
+        self.table.bind("<Button-1>", self.get_item_id) 
         
         self.table.grid(row=0, column=0, padx=0, pady=0, sticky="nsew")  # Add sticky="nsew" to make it expand
 
@@ -101,14 +150,13 @@ class View(customtkinter.CTk):
         self.tabview.tab("Processos").grid_columnconfigure(0, weight=1)
         self.tabview.tab("Processos").grid_rowconfigure(0, weight=1)
 
+    def set_click_callback(self, callback):
+        self.click_callback = callback
 
-    def toggle_process(self, event):
+    def get_item_id(self, event):
         item_id = self.table.identify_row(event.y)
-        current_value = self.table.set(item_id, "Num")
-        new_value = "▼" if current_value == "▶" else "▶"
-        self.table.set(item_id, "Num", value=new_value)
-        self.table.item(item_id, open=not self.table.item(item_id, "open"))
-
+        if self.click_callback:
+            self.click_callback(item_id)
 
     def update_process(self, processes, threads):
         # update the Treeview widget with new data

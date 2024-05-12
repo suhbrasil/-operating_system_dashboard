@@ -27,7 +27,51 @@ class Model:
         memory_usage_percent = (used_memory / total_memory) * 100
         return memory_usage_percent
     
-    
+    def get_threads(self, pid):
+        threads = []
+        thread_info = []
+
+        # Mapear UIDs para nomes de usuário
+        uid_to_username = {}
+        with open('/etc/passwd', 'r') as passwd_file:
+            for line in passwd_file:
+                parts = line.strip().split(':')
+                uid = parts[2]
+                username = parts[0]
+                uid_to_username[uid] = username
+
+        # Iterar sobre os diretórios em /proc
+        for entry in os.listdir(f'/proc/{pid}/task'):
+            # Verificar se a entrada é um diretório e representa um processo
+            if entry.isdigit():
+                tid = entry
+
+                # Inicializar variáveis para armazenar informações do thread
+                user = 'Unknown'
+                name = 'Unknown'
+                status = 'Unknown'
+
+                # Tentar ler o arquivo status
+                try:
+                    with open(f'/proc/{pid}/task/{tid}/status', 'r') as status_file:
+                        # Ler as linhas do arquivo status
+                        for line in status_file:
+                            # Procurar por linhas contendo 'Uid:', 'Name:', e 'State:'
+                            if line.startswith('Uid:'):
+                                uid = line.split()[1]
+                                user = uid_to_username.get(uid, 'Unknown')
+                            elif line.startswith('Name:'):
+                                name = line.split(':')[1].strip()
+                            elif line.startswith('State:'):
+                                status = line.split(':')[1].strip()
+                except FileNotFoundError:
+                    # Se o arquivo status não existe, pular este thread
+                    continue
+
+                # Adicionar as informações do thread à lista
+                threads.append({'ID': tid, 'Usuário': user, 'Nome': name, 'Status': status})
+
+        return threads
     
     def get_processes_and_threads(self):
         processes = []
@@ -146,3 +190,33 @@ class Model:
                     total_threads += len(os.listdir(f'/proc/{entry}/task'))
                     
         return total_processes, total_threads
+
+    def get_process_memory(self, pid):
+        process_memory = {}
+        try:
+            with open(os.path.join('/proc', pid, 'status')) as f:
+                for line in f:
+                    if line.startswith('VmRSS:'):
+                        memory = line.split()[1]  # memory in kB
+                        process_memory = int(memory)
+                        break
+        except FileNotFoundError:
+            pass  # process has already terminated
+        return process_memory
+    
+    def get_page_usage(self, pid):
+        page_usage = {'total': 0, 'code': 0, 'heap': 0, 'stack': 0}
+        try:
+            with open(f'/proc/{pid}/smaps', 'r') as f:
+                for line in f:
+                    if 'Size:' in line:
+                        page_usage['total'] += int(line.split()[1])
+                    elif '[heap]' in line:
+                        page_usage['heap'] += int(next(f).split()[1])
+                    elif '[stack]' in line:
+                        page_usage['stack'] += int(next(f).split()[1])
+                    elif '.text' in line:
+                        page_usage['code'] += int(next(f).split()[1])
+        except FileNotFoundError:
+            pass  # process has already terminated
+        return page_usage
