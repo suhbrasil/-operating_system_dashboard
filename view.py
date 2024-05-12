@@ -61,57 +61,103 @@ class View(customtkinter.CTk):
         self.tabview.add("Memória")
         self.tabview.pack()
 
-    def open_popup(self, item_id, threads, process_memory, page_usage):
-        top = Toplevel()
+     
+    def open_popup(self, event, process_memory, page_usage, process_details):
+        # Identify the column where the click occurred
+        col = self.table.identify_column(event.x)
+
+        # Check if the click occurred in the "Num" column
+        if col == "#1":  # "#1" is the identifier for the first column
+            # If click occurred in the "Num" column, toggle the process
+            item_id = self.table.identify_row(event.y)
+            current_value = self.table.set(item_id, "Num")
+            new_value = "▼" if current_value == "▶" else "▶"
+            self.table.set(item_id, "Num", value=new_value)
+            self.table.item(item_id, open=not self.table.item(item_id, "open"))
+
+        # Check if the click occurred in the "Num" column
+        if col == "#2":  # "#1" is the identifier for the first column
+            # If click occurred in the "ID" column, show detail 
+            item_id = self.table.identify_row(event.y)
+            top = Toplevel()
+            top.geometry("800x400")
+            top.title(item_id)
+            
+            top.table_details = ttk.Treeview(top, columns=("Command Line", "State", "UID", "GID", "PPID"), show="headings")
+            top.table_details.column("Command Line", anchor="center", width=160)
+            top.table_details.column("State", anchor="center", width=160)
+            top.table_details.column("UID", anchor="center", width=160)
+            top.table_details.column("GID", anchor="center", width=160)
+            top.table_details.column("PPID", anchor="center", width=160)
+            
+            top.table_details.heading("Command Line", text="Command Line")
+            top.table_details.heading("State", text="State")
+            top.table_details.heading("UID", text="UID")
+            top.table_details.heading("GID", text="GID")
+            top.table_details.heading("PPID", text="PPID")
+            top.table_details.grid(row=0, column=0, columnspan=2, padx=0, pady=0, sticky="nsew")  # Add sticky="nsew" to make it expand
+            top.grid_rowconfigure(0, weight=1)
+            
+            for pid, details in process_details.items():
+                if pid == item_id:
+                    top.table_details.insert("", "end", values=(
+                        details.get('Command Line'),
+                        details.get('State'),
+                        details.get('Uid'),
+                        details.get('Gid'),
+                        details.get('PPid')
+                    ))
+
+            top.memory_usage = customtkinter.CTkTextbox(top, font=("Monserrat", 15))
+            top.memory_usage.grid(row=1, column=0, columnspan=1, padx=(5, 0), pady=(5, 0), sticky="nsew")
+            top.memory_usage.tag_config("center", justify="center")
+            if item_id in process_memory:
+                if process_memory[item_id]:
+                    top.memory_usage.insert("end", f"Uso da Memória:\n{process_memory[item_id]} kB\n", "center")
+                else:
+                    top.memory_usage.insert("end", "Uso da Memória:\n0 kB\n", "center")
+            else:
+                top.memory_usage.insert("end", "Uso da Memória:\n0 kB\n", "center")
+
+            top.page_usage = customtkinter.CTkTextbox(top, font=("Monserrat", 15))
+            top.page_usage.grid(row=1, column=1, columnspan=1, padx=(5, 0), pady=(5, 0), sticky="nsew")
+            top.page_usage.tag_config("center", justify="center")
+            if item_id in page_usage:
+                top.page_usage.insert("end", f"Uso de páginas:\nTotal: {page_usage[item_id]['total']} kB\nCódigo: {page_usage[item_id]['code']} kB\nHeap: {page_usage[item_id]['heap']} kB\nStack: {page_usage[item_id]['stack']} kB\n", "center")
+            
+            self.update_popup(top, item_id, process_memory, page_usage, process_details)
+            
+    def update_popup(self, top, item_id, process_memory, page_usage, process_details):
         top.geometry("800x400")
         top.title(item_id)
-
-        top.popup_table = ttk.Treeview(top, columns=("ID", "Usuário", "Nome", "Status"), show="headings")
-        top.popup_table.column("ID", anchor="center", width=200)
-        top.popup_table.column("Usuário", anchor="center", width=200)
-        top.popup_table.column("Nome", anchor="center", width=200)
-        top.popup_table.column("Status", anchor="center", width=200)
-        top.popup_table.heading("ID", text="ID")
-        top.popup_table.heading("Usuário", text="Usuário")
-        top.popup_table.heading("Nome", text="Nome")
-        top.popup_table.heading("Status", text="Status")
-        top.popup_table.grid(row=0, column=0, columnspan=2, padx=0, pady=0, sticky="nsew")  # Add sticky="nsew" to make it expand
-        for thread in threads:
-            top.popup_table.insert("", "end", values=(thread['ID'], thread['Usuário'], thread['Nome'], thread['Status']))
-
-        top.memory_usage = customtkinter.CTkTextbox(top, font=("Monserrat", 15))
-        top.memory_usage.grid(row=1, column=0, columnspan=1, padx=(5, 0), pady=(5, 0), sticky="nsew")
-        top.memory_usage.tag_config("center", justify="center")
-        if process_memory:
-            top.memory_usage.insert("end", f"Uso da Memória:\n{process_memory:} kB\n", "center")
-        else:
-            top.memory_usage.insert("end", "Uso da Memória:\n0 kB\n", "center")
-
-        top.page_usage = customtkinter.CTkTextbox(top, font=("Monserrat", 15))
-        top.page_usage.grid(row=1, column=1, columnspan=1, padx=(5, 0), pady=(5, 0), sticky="nsew")
-        top.page_usage.tag_config("center", justify="center")
-        top.page_usage.insert("end", f"Uso de páginas:\nTotal: {page_usage['total']} kB\nCódigo: {page_usage['code']} kB\nHeap: {page_usage['heap']} kB\nStack: {page_usage['stack']} kB\n", "center")
-
-        top.after(1000, lambda: self.update_popup(top, item_id, threads, process_memory, page_usage))
-
-    def update_popup(self, top, item_id, threads, process_memory, page_usage):
-        top.geometry("800x400")
-        top.title(item_id)
-
-        top.popup_table.delete(*top.popup_table.get_children())
-        for thread in threads:
-            top.popup_table.insert("", "end", values=(thread['ID'], thread['Usuário'], thread['Nome'], thread['Status']))
+        
+        top.table_details.delete(*top.table_details.get_children())
+        for pid, details in process_details.items():
+            if pid == item_id:
+                top.table_details.insert("", "end", values=(
+                    details.get('Command Line'),
+                    details.get('State'),
+                    details.get('Uid'),
+                    details.get('Gid'),
+                    details.get('PPid')
+                ))
         
         top.memory_usage.delete("1.0", tkinter.END)
-        if process_memory:
-            top.memory_usage.insert("end", f"Uso da Memória:\n{process_memory:} kB\n", "center")
+        if item_id in process_memory:
+            if process_memory[item_id]:
+                top.memory_usage.insert("end", f"Uso da Memória:\n{process_memory[item_id]} kB\n", "center")
+            else:
+                top.memory_usage.insert("end", "Uso da Memória:\n0 kB\n", "center")
         else:
             top.memory_usage.insert("end", "Uso da Memória:\n0 kB\n", "center")
         
         top.page_usage.delete("1.0", tkinter.END)
-        top.page_usage.insert("end", f"Uso de páginas:\nTotal: {page_usage['total']} kB\nCódigo: {page_usage['code']} kB\nHeap: {page_usage['heap']} kB\nStack: {page_usage['stack']} kB\n", "center")
+        if item_id in page_usage:
+            top.page_usage.insert("end", f"Uso de páginas:\nTotal: {page_usage[item_id]['total']} kB\nCódigo: {page_usage[item_id]['code']} kB\nHeap: {page_usage[item_id]['heap']} kB\nStack: {page_usage[item_id]['stack']} kB\n", "center")
 
-    def process_tab(self, processes, threads):
+        top.after(1000, lambda: self.update_popup(top, item_id, process_memory, page_usage, process_details))
+        
+    def process_tab(self, processes, threads, process_memory, page_usage, process_details):
         # create treeview table
         self.table = ttk.Treeview(self.tabview.tab("Processos"), columns=("Num", "ID", "Usuário", "Nome", "Status"), show="headings")
         self.table.column("ID", anchor="center", width=216)
@@ -142,21 +188,15 @@ class View(customtkinter.CTk):
             self.table.item(process_id, open=False)  # Start with threads collapsed
 
         # Bind the click event to toggle the node (process) expansion
-        self.table.bind("<Button-1>", self.get_item_id) 
+        #self.table.bind("<Button-1>", lambda event, mem=process_memory, usage=page_usage: self.open_popup(event, mem, usage))
+        self.table.bind("<Button-1>", lambda event, p_mem=process_memory, pag_us=page_usage, p_details=process_details: self.open_popup(event, p_mem, pag_us, p_details))
         
         self.table.grid(row=0, column=0, padx=0, pady=0, sticky="nsew")  # Add sticky="nsew" to make it expand
 
         # Configure row and column weights to make the table expand to fill the available space
         self.tabview.tab("Processos").grid_columnconfigure(0, weight=1)
         self.tabview.tab("Processos").grid_rowconfigure(0, weight=1)
-
-    def set_click_callback(self, callback):
-        self.click_callback = callback
-
-    def get_item_id(self, event):
-        item_id = self.table.identify_row(event.y)
-        if self.click_callback:
-            self.click_callback(item_id)
+        
 
     def update_process(self, processes, threads):
         # update the Treeview widget with new data
