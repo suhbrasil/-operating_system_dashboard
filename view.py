@@ -303,6 +303,8 @@ class View(customtkinter.CTk):
         self.virtual_memory = customtkinter.CTkTextbox(self.tabview.tab("Memória"), font=("Monserrat", 15))
         self.virtual_memory.grid(row=2, column=2, padx=(5, 0), pady=(5, 0), sticky="nsew")
         self.virtual_memory.tag_config("center", justify="center")
+        
+
 
 
     def update_memory_tab(self, meminfo, memory_usage_percent):
@@ -340,10 +342,11 @@ class View(customtkinter.CTk):
         self.memory_usage.insert("end", f"Uso da Memória:\n{memory_usage_percent:.2f}%\n", "center")
 
         self.free_memory.delete("1.0", tkinter.END)
-        self.free_memory.insert("end", f"Memória livre:\n{meminfo['MemFree']: }kB\n", "center")
+        self.free_memory.insert("end", f"Memória livre:\n{meminfo['MemFree']/1000000:.2f}GB\n", "center")
 
         self.RAM_memory.delete("1.0", tkinter.END)
-        self.RAM_memory.insert("end", f"Memória física:\n{meminfo['MemTotal']: }kB\n", "center")
+        self.RAM_memory.insert("end", f"Memória física:\n{meminfo['MemTotal']/1000000:.2f}GB\n", "center")
 
         self.virtual_memory.delete("1.0", tkinter.END)
-        self.virtual_memory.insert("end", f"Memória virtual:\n{meminfo['SwapTotal']: }kB\n", "center")
+        self.virtual_memory.insert("end", f"Memória virtual:\n{meminfo['SwapTotal']/1000000:.2f}GB\n", "center")
+
