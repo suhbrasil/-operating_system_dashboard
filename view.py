@@ -1,3 +1,8 @@
+'''
+Arquivo contendo o processamento dos dados para o dashboard
+É a View do padrão de projeto Model-View-Controller (MVC)
+'''
+
 import tkinter
 from tkinter import *
 import tkinter.messagebox
@@ -21,8 +26,8 @@ class View(customtkinter.CTk):
     def __init__(self):
         super().__init__()
 
-        customtkinter.set_appearance_mode("Dark")  # Modes: "System" (standard), "Dark", "Light"
-        customtkinter.set_default_color_theme("dark-blue")  # Themes: "blue" (standard), "green", "dark-blue"
+        customtkinter.set_appearance_mode("Dark")  # Setado mode escuro para a tela
+        customtkinter.set_default_color_theme("dark-blue")  # Setado tema escuro-azul
         
         style = ttk.Style()
 
@@ -51,38 +56,40 @@ class View(customtkinter.CTk):
         style.map("FigureCanvasTkAgg.Figure",
                 background=[('active', '#3484F0')])
 
-        # configure window
+        # Configuração da janela
         self.title("Dashboard")
         self.geometry(f"{1100}x{580}")
 
+        # Criação das tabs
         self.tabview = customtkinter.CTkTabview(self, width=1100, height=580)
         self.tabview.add("Processos")
         self.tabview.add("Dados globais")
         self.tabview.add("Memória")
         self.tabview.pack()
 
-     
+    # Função que irá gerenciar a abertura do pop up com as informações detalhadas e do uso de memória de cada processo 
+    # Ele será exibido ao clicar no ID do processo listado na aba "Processos"
     def open_popup(self, event, process_memory, page_usage, process_details):
-        # Identify the column where the click occurred
+        # Identifica a coluna que o clique foi acionado
         col = self.table.identify_column(event.x)
 
-        # Check if the click occurred in the "Num" column
-        if col == "#1":  # "#1" is the identifier for the first column
-            # If click occurred in the "Num" column, toggle the process
+        # Checa se o clique foi na coluna 1 (seta para exibir as threads)
+        if col == "#1": 
             item_id = self.table.identify_row(event.y)
             current_value = self.table.set(item_id, "Num")
             new_value = "▼" if current_value == "▶" else "▶"
             self.table.set(item_id, "Num", value=new_value)
             self.table.item(item_id, open=not self.table.item(item_id, "open"))
 
-        # Check if the click occurred in the "Num" column
-        if col == "#2":  # "#1" is the identifier for the first column
-            # If click occurred in the "ID" column, show detail 
+        # Checa se o clique foi na coluna 2 (ID do processo)
+        # Se o clique for na coluna 2, irá criar os elementos do pop up 
+        if col == "#2":  
             item_id = self.table.identify_row(event.y)
             top = Toplevel()
             top.geometry("800x400")
             top.title(item_id)
             
+            # Cria a tabela com as informações detalhadas do processo
             top.table_details = ttk.Treeview(top, columns=("Command Line", "State", "UID", "GID", "PPID"), show="headings")
             top.table_details.column("Command Line", anchor="center", width=160)
             top.table_details.column("State", anchor="center", width=160)
@@ -108,6 +115,7 @@ class View(customtkinter.CTk):
                         details.get('PPid')
                     ))
 
+            # Cria uma caixa de texto com o uso de memória do processo
             top.memory_usage = customtkinter.CTkTextbox(top, font=("Monserrat", 15))
             top.memory_usage.grid(row=1, column=0, columnspan=1, padx=(5, 0), pady=(5, 0), sticky="nsew")
             top.memory_usage.tag_config("center", justify="center")
@@ -119,6 +127,7 @@ class View(customtkinter.CTk):
             else:
                 top.memory_usage.insert("end", "Uso da Memória:\n0 kB\n", "center")
 
+            # Cria uma caixa de texto com as informações da quantidade de páginas do processo
             top.page_usage = customtkinter.CTkTextbox(top, font=("Monserrat", 15))
             top.page_usage.grid(row=1, column=1, columnspan=1, padx=(5, 0), pady=(5, 0), sticky="nsew")
             top.page_usage.tag_config("center", justify="center")
@@ -126,7 +135,8 @@ class View(customtkinter.CTk):
                 top.page_usage.insert("end", f"Uso de páginas:\nTotal: {page_usage[item_id]['total']} kB\nCódigo: {page_usage[item_id]['code']} kB\nHeap: {page_usage[item_id]['heap']} kB\nStack: {page_usage[item_id]['stack']} kB\n", "center")
             
             self.update_popup(top, item_id, process_memory, page_usage, process_details)
-            
+          
+    # Atualização dos dados do pop-up  
     def update_popup(self, top, item_id, process_memory, page_usage, process_details):
         top.geometry("800x400")
         top.title(item_id)
@@ -156,9 +166,10 @@ class View(customtkinter.CTk):
             top.page_usage.insert("end", f"Uso de páginas:\nTotal: {page_usage[item_id]['total']} kB\nCódigo: {page_usage[item_id]['code']} kB\nHeap: {page_usage[item_id]['heap']} kB\nStack: {page_usage[item_id]['stack']} kB\n", "center")
 
         top.after(1000, lambda: self.update_popup(top, item_id, process_memory, page_usage, process_details))
-        
+    
+    # Cria os elementos da aba Processos
     def process_tab(self, processes, threads, process_memory, page_usage, process_details):
-        # create treeview table
+        # Cria a tabela dos processos, exibindo o ID, usuário, Nome e Status de cada um
         self.table = ttk.Treeview(self.tabview.tab("Processos"), columns=("Num", "ID", "Usuário", "Nome", "Status"), show="headings")
         self.table.column("ID", anchor="center", width=216)
         self.table.column("Usuário", anchor="center", width=216)
@@ -169,7 +180,6 @@ class View(customtkinter.CTk):
         self.table.heading("Nome", text="Nome")
         self.table.heading("Status", text="Status")
 
-        # Add a column to display the expand/collapse button/icon
         self.table.heading("Num", text="")
         self.table.column("Num", width=40, anchor="w")
         threads_info = []
@@ -185,23 +195,19 @@ class View(customtkinter.CTk):
                     
             for thread in threads_info:
                 self.table.insert(process_id, "end", values=("", thread['ID'], thread['Usuário'], thread['Nome'], thread['Status']))
-            self.table.item(process_id, open=False)  # Start with threads collapsed
+            self.table.item(process_id, open=False) 
 
-        # Bind the click event to toggle the node (process) expansion
-        #self.table.bind("<Button-1>", lambda event, mem=process_memory, usage=page_usage: self.open_popup(event, mem, usage))
         self.table.bind("<Button-1>", lambda event, p_mem=process_memory, pag_us=page_usage, p_details=process_details: self.open_popup(event, p_mem, pag_us, p_details))
         
-        self.table.grid(row=0, column=0, padx=0, pady=0, sticky="nsew")  # Add sticky="nsew" to make it expand
+        self.table.grid(row=0, column=0, padx=0, pady=0, sticky="nsew")
 
-        # Configure row and column weights to make the table expand to fill the available space
         self.tabview.tab("Processos").grid_columnconfigure(0, weight=1)
         self.tabview.tab("Processos").grid_rowconfigure(0, weight=1)
         
-
+    # Atualiza os dados da aba Processos
     def update_process(self, processes, threads):
-        # update the Treeview widget with new data
         df = pd.DataFrame.from_dict(processes)
-        self.table.delete(*self.table.get_children())  # Clear existing data
+        self.table.delete(*self.table.get_children())  
         threads_info = []
         
 
@@ -215,37 +221,28 @@ class View(customtkinter.CTk):
                     
             for thread in threads_info:
                 self.table.insert(process_id, "end", values=("", thread['ID'], thread['Usuário'], thread['Nome'], thread['Status']))
-            self.table.item(process_id, open=False)  # Start with threads collapsed
+            self.table.item(process_id, open=False) 
 
-
-
+    # Cria os elementos da aba Dados globais
     def global_data_tab(self):
         self.tabview.tab("Dados globais").grid_columnconfigure((0, 1, 2), weight=1)
         self.tabview.tab("Dados globais").grid_rowconfigure((0, 1, 2), weight=1)
 
+        # Cria o gráfico com a porcentagem de uso da CPU pelo tempo
         self.figure = Figure(figsize=(10, 2), dpi=100, facecolor="k")
         self.ax = self.figure.add_subplot(111)
         self.ax.set_facecolor('k')
-        # format the x-axis to show the time
         self.myFmt = mdates.DateFormatter("%S")
         self.ax.xaxis.set_major_formatter(self.myFmt)
     
         for label in self.ax.xaxis.get_ticklabels():
-            # label is a Text instance
             label.set_color('w')
         for label in self.ax.yaxis.get_ticklabels():
-            # label is a Text instance
             label.set_color('w')
-            # label.set_rotation(45)
-            # label.set_fontsize(1)
         for line in self.ax.yaxis.get_ticklines():
-            # line is a Line2D instance
             line.set_color('w')
         for line in self.ax.xaxis.get_ticklines():
-            # line is a Line2D instance
             line.set_color('w')
-            # line.set_markersize(25)
-            # line.set_markeredgewidth(3)
         for line in self.ax.xaxis.get_gridlines():
             line.set_color('w')
 
@@ -256,12 +253,9 @@ class View(customtkinter.CTk):
         self.ax.spines['bottom'].set_color('white')
         self.ax.spines['left'].set_color('white')
         
-
-        # initial x and y data
         dateTimeObj = datetime.now() + timedelta(seconds=-30)
         self.x_data = [dateTimeObj + timedelta(seconds=i) for i in range(30)]
         self.y_data = [0 for i in range(30)]
-        # create the plot
         self.plot = self.ax.plot(self.x_data, self.y_data, label='CPU')[0]
         self.ax.set_ylim(0, 100)
         self.ax.set_xlim(self.x_data[0], self.x_data[-1])
@@ -269,7 +263,7 @@ class View(customtkinter.CTk):
         self.canvas = FigureCanvasTkAgg(self.figure, self.tabview.tab("Dados globais"))
         self.canvas.get_tk_widget().grid(row=0, column=0, columnspan=4, padx=(20, 0), pady=(20, 0), sticky="nsew")
         
-
+        # Cria caixas de texto com a parcentagem de uso da CPU, tempo ocioso, quantidade de processo e de threads
         self.cpu = customtkinter.CTkTextbox(self.tabview.tab("Dados globais"), font = ("Monserrat", 15))
         self.cpu.grid(row=1, column=0,padx=(10, 0), pady=(10, 0), sticky="nsew")
         self.cpu.tag_config("center", justify="center")
@@ -283,32 +277,24 @@ class View(customtkinter.CTk):
         self.threads.grid(row=1, column=3,padx=(10, 0), pady=(10, 0), sticky="nsew")
         self.threads.tag_config("center", justify="center")
 
-
-
+    # Atualiza os elementos da aba Dados Globais
     def update_global_data(self, cpu_percentage, idle_percentage, total_process, total_threads):
-        # Append new data point to the x and y data
         current_time = datetime.now()
         self.x_data.append(current_time)
         self.y_data.append(cpu_percentage)
 
-        # Update plot data
         self.plot.set_xdata(self.x_data)
         self.plot.set_ydata(self.y_data)
 
-        # Update x-axis range to show the last 1 minute
         one_minute_ago = current_time - timedelta(minutes=1)
         self.ax.set_xlim(one_minute_ago, current_time)
 
-        # Update x-axis ticks to show seconds from 0 to 60
         self.ax.xaxis.set_major_locator(mdates.SecondLocator(interval=10))
         self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
 
         self.ax.yaxis.set_major_formatter(mticker.PercentFormatter())
 
-        # Redraw plot
         self.canvas.draw_idle()
-
-        # Update the CPU percentage text using the get_cpu_usage method   
         
         self.cpu.delete("1.0", tkinter.END)
         self.cpu.insert("0.0", f"Uso da CPU: {cpu_percentage:.2f}%\n", "center")
@@ -319,8 +305,9 @@ class View(customtkinter.CTk):
         self.threads.delete("1.0", tkinter.END)
         self.threads.insert("0.0", f"Quantidade de threads: {total_threads: }\n", "center")
 
-
+    # Cria os elementos da aba Memória
     def memory_tab(self, meminfo):  
+        #Cria a tabela os as informações da memória
         self.mem_table = ttk.Treeview(self.tabview.tab("Memória"), columns=("Memória", "Valor"), show="headings")     
         self.mem_table.grid(row=0, column=0, rowspan=3, padx=0, pady=0, sticky="nsew")
         self.mem_table.column("Memória", anchor="center", width=120)
@@ -331,29 +318,21 @@ class View(customtkinter.CTk):
         for key, value in meminfo.items():
             self.mem_table.insert("", "end", values=(key, value))
 
+        # Cria o gráfico da porcentagem de memória pelo tempo
         self.figure_mem = Figure(figsize=(10, 2.5), dpi=100, facecolor="k")
         self.ax_mem = self.figure_mem.add_subplot(111)
         self.ax_mem.set_facecolor('k')
-        # format the x-axis to show the time
         self.myFmt = mdates.DateFormatter("%S")
         self.ax_mem.xaxis.set_major_formatter(self.myFmt)
 
         for label in self.ax_mem.xaxis.get_ticklabels():
-            # label is a Text instance
             label.set_color('w')
         for label in self.ax_mem.yaxis.get_ticklabels():
-            # label is a Text instance
             label.set_color('w')
-            # label.set_rotation(45)
-            # label.set_fontsize(1)
         for line in self.ax_mem.yaxis.get_ticklines():
-            # line is a Line2D instance
             line.set_color('w')
         for line in self.ax_mem.xaxis.get_ticklines():
-            # line is a Line2D instance
             line.set_color('w')
-            # line.set_markersize(25)
-            # line.set_markeredgewidth(3)
         for line in self.ax_mem.xaxis.get_gridlines():
             line.set_color('w')
 
@@ -364,11 +343,9 @@ class View(customtkinter.CTk):
         self.ax_mem.spines['bottom'].set_color('white')
         self.ax_mem.spines['left'].set_color('white')
 
-        # initial x and y data
         dateTimeObj = datetime.now() + timedelta(seconds=-30)
         self.x_data_mem = [dateTimeObj + timedelta(seconds=i) for i in range(30)]
         self.y_data_mem = [0 for i in range(30)]
-        # create the plot
         self.plot_mem = self.ax_mem.plot(self.x_data_mem, self.y_data_mem, label='Memória')[0]
         self.ax_mem.set_ylim(0, 100)
         self.ax_mem.set_xlim(self.x_data_mem[0], self.x_data_mem[-1])
@@ -376,6 +353,7 @@ class View(customtkinter.CTk):
         self.canvas_mem = FigureCanvasTkAgg(self.figure_mem, self.tabview.tab("Memória"))
         self.canvas_mem.get_tk_widget().grid(row=0, column=1, columnspan=3, rowspan=1, padx=(5, 0), pady=(5, 0), sticky="nsew")
 
+        # Cria caixas de texto com a porcentagem de uso da memória, a quantidade de memória livre, virtual e física
         self.memory_usage = customtkinter.CTkTextbox(self.tabview.tab("Memória"), font=("Monserrat", 15))
         self.memory_usage.grid(row=1, column=1, padx=(5, 0), pady=(5, 0), sticky="nsew")
         self.memory_usage.tag_config("center", justify="center")
@@ -394,38 +372,31 @@ class View(customtkinter.CTk):
         
 
 
-
+    # Atualiza os elementos da aba Memória
     def update_memory_tab(self, meminfo, memory_usage_percent):
         current_time = datetime.now()
         
-        # append new data point to the x and y data
         self.x_data_mem.append(current_time)
         self.y_data_mem.append(memory_usage_percent)
-        # remove oldest data point
         self.x_data_mem = self.x_data_mem[1:]
         self.y_data_mem = self.y_data_mem[1:]
-        #  update plot data
         self.plot_mem.set_xdata(self.x_data_mem)
         self.plot_mem.set_ydata(self.y_data_mem)
 
-        # Update x-axis range to show the last 1 minute
         one_minute_ago = current_time - timedelta(minutes=1)
         self.ax_mem.set_xlim(one_minute_ago, current_time)
 
-        # Update x-axis ticks to show seconds from 0 to 60
         self.ax_mem.xaxis.set_major_locator(mdates.SecondLocator(interval=10))
         self.ax_mem.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
 
         self.ax_mem.yaxis.set_major_formatter(mticker.PercentFormatter())
-        self.canvas_mem.draw_idle()  # redraw plot
+        self.canvas_mem.draw_idle()
 
-        # update memory table
         df = pd.DataFrame.from_dict(meminfo, orient='index', columns=['Value'])
-        self.mem_table.delete(*self.mem_table.get_children())  # Clear existing data
+        self.mem_table.delete(*self.mem_table.get_children())  
         for index, row in df.iterrows():
             self.mem_table.insert("", "end", values=(index, row['Value']))
 
-        # update memory text
         self.memory_usage.delete("1.0", tkinter.END)
         self.memory_usage.insert("end", f"Uso da Memória:\n{memory_usage_percent:.2f}%\n", "center")
 

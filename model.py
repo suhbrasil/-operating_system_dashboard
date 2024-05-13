@@ -1,13 +1,19 @@
+'''
+Arquivo contendo o processo de aquisição dos dados para o dashboard
+É o Model do padrão de projeto Model-View-Controller (MVC)
+'''
+
 import os
 import os.path
 
 class Model:
     def __init__(self):
-        # Initialize previous idle and total times
+        # Inicializa as variáveis prev_idle, prev_total, total_processes e total_threads
         self.prev_idle, self.prev_total = self.get_idle_and_total_time()
         self.total_processes = 0
         self.total_threads = 0
 
+    # Função que pega as informções da memória no /proc/meminfo que serão utilizadas posteriormente na função de crição da tela de memória na View
     def get_memory_info(self):
         memory_info = {}
         with open('/proc/meminfo', 'r') as file:
@@ -18,6 +24,7 @@ class Model:
                 memory_info[key] = value
         return memory_info
     
+    # Função para calcular a porcentagem do uso de memória, utilizando informações obtidas na função get_memory_info
     def calculate_memory_usage(self, memory_info):
         total_memory = memory_info['MemTotal']
         free_memory = memory_info['MemFree']
@@ -27,6 +34,7 @@ class Model:
         memory_usage_percent = (used_memory / total_memory) * 100
         return memory_usage_percent
     
+    # Pega as informações de cada processo e as informações de suas respectivas threads e armazena nos arrays processes e threads
     def get_processes_and_threads(self):
         processes = []
         threads = []
@@ -105,18 +113,24 @@ class Model:
                         
         return reversed(processes), threads
     
+    # Pega a porcentagem de uso da CPU
     def get_cpu_usage(self):
-        # Calculate CPU usage based on previous and current idle and total times
+        # Pega o tempo de IDLE e tempo total anteriores para calcular o uso da CPU
         idle_time, total_time = self.get_idle_and_total_time()
 
+        # Prevenir de dar erro caso haja uma divisão por zero
         if(total_time - self.prev_total) == 0:
+            # armazena tempo de IDLE e tempo total para serem utilizados posteriormente
             self.prev_idle, self.prev_total = idle_time, total_time
             return 0.0
         
+        # Cálculo da porcentagem de uso da CPU
         cpu_percentage = 100.0 - ((idle_time - self.prev_idle) / (total_time - self.prev_total) * 100.0)
+        # armazena tempo de IDLE e tempo total para serem utilizados posteriormente
         self.prev_idle, self.prev_total = idle_time, total_time
         return cpu_percentage
     
+    # Pega o tempo de IDLE e tempo total do ('/proc/stat')
     def get_idle_and_total_time(self):
         # Get initial idle and total times from /proc/stat
         with open('/proc/stat', 'r') as file:
@@ -128,65 +142,69 @@ class Model:
                 idle_time = float(cpu_info[4])
                 total_time = sum(float(x) for x in cpu_info[1:])
                 return idle_time, total_time
-            
+    
+    # Calcula o número total de processos e threads
     def get_total_processes_and_threads(self):
         total_processes = 0
         total_threads = 0
-        # Iterate over entries in /proc directory
+        # Itera sobre cada entrada no diretório /proc
         for entry in os.listdir('/proc'):
-            # Check if entry is a directory and represents a process or thread
+            # Checa se a entrada é um dígito
             if entry.isdigit():
-                # Check if it's a process
+                # Checa se é um processo
                 if os.path.exists(f'/proc/{entry}/cmdline'):
                     total_processes += 1
-                # Check if it's a thread
+                # Checa se é uma thread
                 if os.path.isdir(f'/proc/{entry}/task'):
                     total_threads += len(os.listdir(f'/proc/{entry}/task'))
                     
         return total_processes, total_threads
 
+    # Pega as informações da memória de cada processo
     def get_all_process_memory(self):
         all_process_memory = {}
         try:
-            # Iterate over all directories in /proc
+            # Itera sobre todos os diretórios em /proc
             for pid_dir in os.listdir('/proc'):
-                if pid_dir.isdigit():  # Check if it's a process ID (numeric directory)
+                if pid_dir.isdigit():  
                     pid = pid_dir
                     process_memory = self.get_process_memory_by_pid(pid)
                     if process_memory is not None:
                         all_process_memory[pid] = process_memory
         except FileNotFoundError:
-            pass  # process has already terminated
+            pass  
         return all_process_memory
 
+    # Pega as informações da memória de um processo específico a partir de seu PID
     def get_process_memory_by_pid(self, pid):
-        process_memory = None  # Initialize to None
+        process_memory = None 
         try:
             with open(os.path.join('/proc', pid, 'status')) as f:
                 for line in f:
                     if line.startswith('VmRSS:'):
-                        memory = line.split()[1]  # memory in kB
+                        memory = line.split()[1] # Memória em kB
                         process_memory = int(memory)
                         break
         except FileNotFoundError:
-            pass  # process has already terminated
+            pass 
         return process_memory
 
-    
+    # Pega a quantidade de páginas de memória para todos os processos
     def get_all_page_usage(self):
         all_page_usage = {}
         try:
-            # Iterate over all directories in /proc
+            # Itera sobre todos os diretórios em /proc
             for pid_dir in os.listdir('/proc'):
-                if pid_dir.isdigit():  # Check if it's a process ID (numeric directory)
+                if pid_dir.isdigit(): 
                     pid = pid_dir
                     page_usage = self.get_page_usage_by_pid(pid)
                     if page_usage is not None:
                         all_page_usage[pid] = page_usage
         except FileNotFoundError:
-            pass  # process has already terminated
+            pass 
         return all_page_usage
 
+    # Pega a quantidade de páginas de memória (total, de código, heap e stack) para um processo específico a partir de seu PID
     def get_page_usage_by_pid(self, pid):
         page_usage = {'total': 0, 'code': 0, 'heap': 0, 'stack': 0}
         try:
@@ -201,37 +219,39 @@ class Model:
                     elif '.text' in line:
                         page_usage['code'] += int(next(f).split()[1])
         except FileNotFoundError:
-            pass  # process has already terminated
+            pass  
         except PermissionError:
             pass
         except Exception as e:
-            print(f"Error occurred while retrieving page usage for PID {pid}: {e}")
+            print(f"Erro com a quantidade de páginas para o processo {pid}: {e}")
         return page_usage
 
+    # Pega as informações detalhas de um processo específico de acordo com seu PID
     def get_process_details(self, pid):
         process_details = {}
         try:
-            # Read various files inside the /proc/{pid} directory to get process details
+            # Lê vários arquivos dentro do diretório /proc/{pid} para obter os detalhes do processo
             with open(os.path.join('/proc', pid, 'cmdline'), 'rb') as f:
-                # Read the command line of the process
+                # Lê a linha de comando do processo
                 cmdline = f.read().decode().replace('\x00', ' ').strip()
                 process_details['Command Line'] = cmdline if cmdline else None
                 
             with open(os.path.join('/proc', pid, 'status'), 'r') as f:
-                # Read status information of the process
+                # Lê a informação do status do processo
                 for line in f:
                     key, value = line.split(':', 1)
                     process_details[key.strip()] = value.strip()
         except FileNotFoundError:
-            pass  # Process might have terminated
+            pass  
         return process_details
 
+    # Pega as informações detalhas de cada processo
     def get_all_process_details(self):
         all_process_details = {}
         try:
-            # Iterate over all directories in /proc
+            # Itera sobre todos os diretórios em /proc
             for pid_dir in os.listdir('/proc'):
-                if pid_dir.isdigit():  # Check if it's a process ID (numeric directory)
+                if pid_dir.isdigit(): 
                     pid = pid_dir
                     process_details = self.get_process_details(pid)
                     if process_details:
