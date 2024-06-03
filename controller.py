@@ -17,11 +17,13 @@ class Controller:
         process_memory = self.model.get_all_process_memory()
         page_usage = self.model.get_all_page_usage()
         process_details = self.model.get_all_process_details()
+        partitions = self.model.disk_partitions_info()
 
         # Cria as abas Memória, Dados globais e Processos, definidas na view, passando os dados trazidos do model
         self.view.memory_tab(meminfo)
         self.view.process_tab(processes, threads, process_memory, page_usage, process_details)
         self.view.global_data_tab()
+        self.view.files_tab(partitions)
 
     # Apuração dos dados
     # Irá pegar os dados passados pelo model e exibi-los nas views e irá atualizar esses dados a cada 1 segundo para reexibi-los
@@ -33,10 +35,12 @@ class Controller:
             meminfo = self.model.get_memory_info()
             memory_usage_percent = self.model.calculate_memory_usage(meminfo)
             processes, threads = self.model.get_processes_and_threads()
+            partitions = self.model.disk_partitions_info()
 
             self.view.update_global_data(cpu_percentage, idle_percentage, total_process, total_threads)
             self.view.update_memory_tab(meminfo, memory_usage_percent)
             self.view.update_process(processes, threads)
+            self.view.update_files_tab(partitions)
 
             time.sleep(1)  # Atualiza os dados a cada segundo
         

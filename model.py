@@ -260,3 +260,74 @@ class Model:
             pass
         return all_process_details
 
+    # Converte bytes para gigabytes.
+    def bytes_to_gb(self, bytes):
+        return bytes / (1024 ** 3)
+
+    # Pega as partições do disco
+    def get_disk_partitions(self):
+        partitions = []
+        with open('/proc/partitions') as f:
+            lines = f.readlines()[2:]  # Ignora as duas primeiras linhas
+            for line in lines:
+                words = line.split()
+                if words:
+                    partitions.append(words[3])
+        return partitions
+
+    # Pega o tamanho da memória de cada partição do disco
+    def get_partition_usage(self, partition):
+        partition_path = f"/sys/class/block/{partition}/size"
+        with open(partition_path) as f:
+            blocks = int(f.read().strip())
+        total_size_bytes = blocks * 512  # Tamanho do bloco é 512 bytes
+        
+        mount_point = None
+        with open('/proc/mounts') as f:
+            for line in f:
+                if line.startswith(f"/dev/{partition} "):
+                    mount_point = line.split()[1]
+                    break
+        
+        if mount_point:
+            statvfs = os.statvfs(mount_point)
+            free_size_bytes = statvfs.f_bfree * statvfs.f_frsize
+            used_size_bytes = total_size_bytes - free_size_bytes
+            percent_used = (used_size_bytes / total_size_bytes) * 100
+            
+            return {
+                'partition': partition,
+                'mount_point': mount_point,
+                'total_size_gb': self.bytes_to_gb(total_size_bytes),
+                'used_size_gb': self.bytes_to_gb(used_size_bytes),
+                'free_size_gb': self.bytes_to_gb(free_size_bytes),
+                'percent_used': percent_used,
+            }
+        else:
+            return None
+
+    # Retorna as informações de partição do disco
+    def disk_partitions_info(self):
+        partitions_info = []
+        
+        partitions = self.get_disk_partitions()
+        for partition in partitions:
+            usage_info = self.get_partition_usage(partition)
+            if usage_info:
+                partitions_info.append({
+                    'Partições': usage_info['partition'], 
+                    'Percentual usado': f"{usage_info['percent_used']:.2f}%",
+                    'Total': f"{usage_info['total_size_gb']:.2f} GB",
+                    'Usado': f"{usage_info['used_size_gb']:.2f} GB",
+                    'Livre': f"{usage_info['free_size_gb']:.2f} GB", 
+                })
+                #print(f"Partition: /dev/{usage_info['partition']}")
+                #print(f"Mount Point: {usage_info['mount_point']}")
+                #print(f"Total Size: {usage_info['total_size_gb']:.2f} GB")
+                #print(f"Used Size: {usage_info['used_size_gb']:.2f} GB")
+                #print(f"Free Size: {usage_info['free_size_gb']:.2f} GB")
+                #print(f"Percent Used: {usage_info['percent_used']:.2f}%")
+                #print("-" * 40)
+                
+        return partitions_info
+

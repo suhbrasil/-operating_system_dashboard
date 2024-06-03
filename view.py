@@ -65,6 +65,7 @@ class View(customtkinter.CTk):
         self.tabview.add("Processos")
         self.tabview.add("Dados globais")
         self.tabview.add("Memória")
+        self.tabview.add("Sistema de arquivos")
         self.tabview.pack()
 
     # Função que irá gerenciar a abertura do pop up com as informações detalhadas e do uso de memória de cada processo 
@@ -369,8 +370,6 @@ class View(customtkinter.CTk):
         self.virtual_memory = customtkinter.CTkTextbox(self.tabview.tab("Memória"), font=("Monserrat", 15))
         self.virtual_memory.grid(row=2, column=2, padx=(5, 0), pady=(5, 0), sticky="nsew")
         self.virtual_memory.tag_config("center", justify="center")
-        
-
 
     # Atualiza os elementos da aba Memória
     def update_memory_tab(self, meminfo, memory_usage_percent):
@@ -409,3 +408,33 @@ class View(customtkinter.CTk):
         self.virtual_memory.delete("1.0", tkinter.END)
         self.virtual_memory.insert("end", f"Memória virtual:\n{meminfo['SwapTotal']/1000000:.2f}GB\n", "center")
 
+    # Cria os elementos da aba Arquivos
+    def files_tab(self, partitions):
+        # Cria a tabela dos processos, exibindo o ID, usuário, Nome e Status de cada um
+        self.files_table = ttk.Treeview(self.tabview.tab("Sistema de arquivos"), columns=("Partições", "Percentual usado", "Total", "Usado", "Livre", ), show="headings")
+        self.files_table.column("Partições", anchor="center", width=200)
+        self.files_table.column("Percentual usado", anchor="center", width=200)
+        self.files_table.column("Total", anchor="center", width=200)
+        self.files_table.column("Usado", anchor="center", width=200)
+        self.files_table.column("Livre", anchor="center", width=200)
+        
+        self.files_table.heading("Partições", text="Partições")
+        self.files_table.heading("Percentual usado", text="Percentual usado")
+        self.files_table.heading("Total", text="Total")
+        self.files_table.heading("Usado", text="Usado")
+        self.files_table.heading("Livre", text="Livre")
+        
+        for index, row in enumerate(partitions):
+            self.files_table.insert("", "end", index, values=(row['Partições'], row['Percentual usado'], row['Total'], row['Usado'], row['Livre']))
+
+        self.files_table.grid(row=0, column=0, padx=0, pady=0, sticky="nsew")
+
+        self.tabview.tab("Sistema de arquivos").grid_columnconfigure(0, weight=1)
+        self.tabview.tab("Sistema de arquivos").grid_rowconfigure(0, weight=1)
+        
+    # Atualiza os dados da aba Arquivos
+    def update_files_tab(self, partitions):
+        self.files_table.delete(*self.files_table.get_children())  
+
+        for index, row in enumerate(partitions):
+            self.files_table.insert("", "end", index, values=(row['Partições'], row['Percentual usado'], row['Total'], row['Usado'], row['Livre']))
