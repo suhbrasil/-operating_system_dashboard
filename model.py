@@ -5,6 +5,7 @@ Arquivo contendo o processo de aquisição dos dados para o dashboard
 
 import os
 import os.path
+import datetime
 
 class Model:
     def __init__(self):
@@ -12,6 +13,7 @@ class Model:
         self.prev_idle, self.prev_total = self.get_idle_and_total_time()
         self.total_processes = 0
         self.total_threads = 0
+        self.max_depth = 3
 
     # Função que pega as informções da memória no /proc/meminfo que serão utilizadas posteriormente na função de crição da tela de memória na View
     def get_memory_info(self):
@@ -321,13 +323,95 @@ class Model:
                     'Usado': f"{usage_info['used_size_gb']:.2f} GB",
                     'Livre': f"{usage_info['free_size_gb']:.2f} GB", 
                 })
-                #print(f"Partition: /dev/{usage_info['partition']}")
-                #print(f"Mount Point: {usage_info['mount_point']}")
-                #print(f"Total Size: {usage_info['total_size_gb']:.2f} GB")
-                #print(f"Used Size: {usage_info['used_size_gb']:.2f} GB")
-                #print(f"Free Size: {usage_info['free_size_gb']:.2f} GB")
-                #print(f"Percent Used: {usage_info['percent_used']:.2f}%")
-                #print("-" * 40)
                 
         return partitions_info
+
+
+    # Função que lê e percorre o diretório 
+    def read_directory(self, path, depth):
+        directory_tree = []
+        if depth >= self.max_depth:
+            return directory_tree
+        
+        try:
+            entries = os.listdir(path)
+            for entry in entries:
+                full_path = os.path.join(path, entry)
+                if self.is_directory(full_path):
+                    directory_tree.append({
+                        'name': entry,
+                        'path': full_path,
+                        'type': 'directory',
+                        'children': self.read_directory(full_path, depth + 1) # Pega os "filhos" do diretório recursivamente
+                    })
+                else:
+                    info = self.get_file_info(full_path)
+                    directory_tree.append({
+                        'name': entry,
+                        'path': full_path,
+                        'type': 'file',
+                        'size': info['size'],
+                        'permissions': info['permissions'],
+                        'last_modified': info['last_modified']
+                    })
+
+        except PermissionError:
+            pass
+        except FileNotFoundError:
+            pass
+        return directory_tree
+
+    def is_directory(self, path):
+        try:
+            fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+            os.close(fd)
+            return True
+        except OSError:
+            return False
+
+    def get_file_info(self, path):
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            size = 0
+
+        try:
+            permissions = self.get_permissions(path)
+        except OSError:
+            permissions = "Unknown"
+
+        try:
+            last_modified = self.get_last_modified(path)
+        except OSError:
+            last_modified = "Unknown"
+
+        return {
+            'size': size,
+            'permissions': permissions,
+            'last_modified': last_modified
+        }
+
+    def get_permissions(self, path):
+        mode = os.stat(path).st_mode
+        perm_bits = {
+            0o4000: 's',  # setuid
+            0o2000: 's',  # setgid
+            0o1000: 't',  # sticky
+            0o0400: 'r',
+            0o0200: 'w',
+            0o0100: 'x',
+        }
+        perms = ''
+        for p in [0o4000, 0o2000, 0o1000, 0o0400, 0o0200, 0o0100]:
+            perms += perm_bits.get(mode & p, '-')
+        return perms
+
+    def get_last_modified(self, path):
+        last_modified_timestamp = os.path.getmtime(path)
+        last_modified_datetime = datetime.datetime.fromtimestamp(last_modified_timestamp)
+        return last_modified_datetime.strftime('%Y-%m-%d %H:%M:%S')
+
+
+
+
 

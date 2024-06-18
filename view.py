@@ -66,6 +66,7 @@ class View(customtkinter.CTk):
         self.tabview.add("Dados globais")
         self.tabview.add("Memória")
         self.tabview.add("Sistema de arquivos")
+        self.tabview.add("Diretórios")
         self.tabview.pack()
 
     # Função que irá gerenciar a abertura do pop up com as informações detalhadas e do uso de memória de cada processo 
@@ -438,3 +439,33 @@ class View(customtkinter.CTk):
 
         for index, row in enumerate(partitions):
             self.files_table.insert("", "end", index, values=(row['Partições'], row['Percentual usado'], row['Total'], row['Usado'], row['Livre']))
+            
+    def directory_tab(self, directory_tree):
+        self.directory_tree = ttk.Treeview(self.tabview.tab("Diretórios"))
+        self.directory_tree.pack(expand=True, fill='both')
+        
+        # Configurar colunas e cabeçalhos
+        self.directory_tree["columns"] = ("Tamanho", "Permissões", "Última modificação")
+        self.directory_tree.column("#0", width=300, minwidth=150)
+        self.directory_tree.column("Tamanho", width=100, anchor="center")
+        self.directory_tree.column("Permissões", width=150, anchor="center")
+        self.directory_tree.column("Última modificação", width=200, anchor="w")
+
+        self.directory_tree.heading("#0", text="Nome", anchor='w')
+        self.directory_tree.heading("Tamanho", text="Tamanho")
+        self.directory_tree.heading("Permissões", text="Permissões")
+        self.directory_tree.heading("Última modificação", text="Última modificação")
+        
+
+        for item in directory_tree:
+            self.insert_item_directory_tab('', item)
+            
+
+    def insert_item_directory_tab(self, parent, item):
+        if item['type'] == 'directory':
+            node = self.directory_tree.insert(parent, 'end', text=item['name'], open=False)
+            for child in item.get('children', []):
+                self.insert_item_directory_tab(node, child)
+        else:
+            self.directory_tree.insert(parent, 'end', values=(f"{item['size']} bytes", item['permissions'], item['last_modified']), text=item['name'])
+       
