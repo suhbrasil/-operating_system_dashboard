@@ -71,7 +71,7 @@ class View(customtkinter.CTk):
 
     # Função que irá gerenciar a abertura do pop up com as informações detalhadas e do uso de memória de cada processo 
     # Ele será exibido ao clicar no ID do processo listado na aba "Processos"
-    def open_popup(self, event, process_memory, page_usage, process_details):
+    def open_popup(self, event, process_memory, page_usage, process_details, process_resources):
         # Identifica a coluna que o clique foi acionado
         col = self.table.identify_column(event.x)
 
@@ -88,24 +88,25 @@ class View(customtkinter.CTk):
         if col == "#2":  
             item_id = self.table.identify_row(event.y)
             top = Toplevel()
-            top.geometry("800x400")
+            top.geometry("1000x600")
             top.title(item_id)
             
             # Cria a tabela com as informações detalhadas do processo
             top.table_details = ttk.Treeview(top, columns=("Command Line", "State", "UID", "GID", "PPID"), show="headings")
-            top.table_details.column("Command Line", anchor="center", width=160)
-            top.table_details.column("State", anchor="center", width=160)
-            top.table_details.column("UID", anchor="center", width=160)
-            top.table_details.column("GID", anchor="center", width=160)
-            top.table_details.column("PPID", anchor="center", width=160)
+            top.table_details.column("Command Line", anchor="center", width=90)
+            top.table_details.column("State", anchor="center", width=90)
+            top.table_details.column("UID", anchor="center", width=90)
+            top.table_details.column("GID", anchor="center", width=90)
+            top.table_details.column("PPID", anchor="center", width=90)
             
             top.table_details.heading("Command Line", text="Command Line")
             top.table_details.heading("State", text="State")
             top.table_details.heading("UID", text="UID")
             top.table_details.heading("GID", text="GID")
             top.table_details.heading("PPID", text="PPID")
-            top.table_details.grid(row=0, column=0, columnspan=2, padx=0, pady=0, sticky="nsew")  # Add sticky="nsew" to make it expand
-            top.grid_rowconfigure(0, weight=1)
+            top.table_details.grid(row=0, column=0, columnspan=1, padx=0, pady=0, sticky="nsew")  # ADicionar sticky="nsew" para fazer a tabela expandir
+            top.grid_rowconfigure((0, 1), weight=1)
+            top.grid_columnconfigure((0, 1, 2), weight=1)
             
             for pid, details in process_details.items():
                 if pid == item_id:
@@ -119,7 +120,7 @@ class View(customtkinter.CTk):
 
             # Cria uma caixa de texto com o uso de memória do processo
             top.memory_usage = customtkinter.CTkTextbox(top, font=("Monserrat", 15))
-            top.memory_usage.grid(row=1, column=0, columnspan=1, padx=(5, 0), pady=(5, 0), sticky="nsew")
+            top.memory_usage.grid(row=0, column=1, columnspan=1, padx=(5, 0), pady=(5, 0), sticky="nsew")
             top.memory_usage.tag_config("center", justify="center")
             if item_id in process_memory:
                 if process_memory[item_id]:
@@ -128,19 +129,44 @@ class View(customtkinter.CTk):
                     top.memory_usage.insert("end", "Uso da Memória:\n0 kB\n", "center")
             else:
                 top.memory_usage.insert("end", "Uso da Memória:\n0 kB\n", "center")
-
-            # Cria uma caixa de texto com as informações da quantidade de páginas do processo
+                
             top.page_usage = customtkinter.CTkTextbox(top, font=("Monserrat", 15))
-            top.page_usage.grid(row=1, column=1, columnspan=1, padx=(5, 0), pady=(5, 0), sticky="nsew")
+            top.page_usage.grid(row=0, column=2, columnspan=1, padx=(5, 0), pady=(5, 0), sticky="nsew")
             top.page_usage.tag_config("center", justify="center")
             if item_id in page_usage:
                 top.page_usage.insert("end", f"Uso de páginas:\nTotal: {page_usage[item_id]['total']} kB\nCódigo: {page_usage[item_id]['code']} kB\nHeap: {page_usage[item_id]['heap']} kB\nStack: {page_usage[item_id]['stack']} kB\n", "center")
+
+            #  Cria a tabela com as informações atuais dos recursos abertos/alocados pelo processo
+            top.table_resources = ttk.Treeview(top, columns=("Arquivos Abertos", "Semáforos/Mutexes", "Sockets"), show="headings")
+            top.table_resources.column("Arquivos Abertos", anchor="center", width=300)
+            top.table_resources.column("Semáforos/Mutexes", anchor="center", width=300)
+            top.table_resources.column("Sockets", anchor="center", width=300)
+            
+            top.table_resources.heading("Arquivos Abertos", text="Arquivos Abertos")
+            top.table_resources.heading("Semáforos/Mutexes", text="Semáforos/Mutexes")
+            top.table_resources.heading("Sockets", text="Sockets")
+            top.table_resources.grid(row=2, column=0, columnspan=3, padx=0, pady=0, sticky="nsew")  # Adicionar sticky="nsew" para fazer a tabela expandir
+            
+            if item_id in process_resources:
+                resources = process_resources[item_id]
+                max_len = max(len(resources.get('open_files', [])), len(resources.get('sockets', [])), len(resources.get('semaphores_mutexes', [])))
+
+                for i in range(max_len):
+                    open_file = resources.get('open_files', [])[i] if i < len(resources.get('open_files', [])) else ""
+                    socket = resources.get('sockets', [])[i] if i < len(resources.get('sockets', [])) else ""
+                    semaphore_mutex = resources.get('semaphores_mutexes', [])[i] if i < len(resources.get('semaphores_mutexes', [])) else ""
+
+                    formatted_open_file = f"Arquivo: {open_file['file_descriptor']}, Caminho: {open_file['file_path']}" if open_file else ""
+                    formatted_socket = f"Tipo: {socket['type']}, Local: {socket['local_address']}, Remoto: {socket['remote_address']}" if socket else ""
+                    formatted_semaphore_mutex = f"Semáforo/Mutex: {semaphore_mutex}" if semaphore_mutex else ""
+
+                    top.table_resources.insert("", "end", values=(formatted_open_file, formatted_semaphore_mutex, formatted_socket))
             
             self.update_popup(top, item_id, process_memory, page_usage, process_details)
           
     # Atualização dos dados do pop-up  
     def update_popup(self, top, item_id, process_memory, page_usage, process_details):
-        top.geometry("800x400")
+        top.geometry("1000x600")
         top.title(item_id)
         
         top.table_details.delete(*top.table_details.get_children())
@@ -170,7 +196,7 @@ class View(customtkinter.CTk):
         top.after(1000, lambda: self.update_popup(top, item_id, process_memory, page_usage, process_details))
     
     # Cria os elementos da aba Processos
-    def process_tab(self, processes, threads, process_memory, page_usage, process_details):
+    def process_tab(self, processes, threads, process_memory, page_usage, process_details, process_resources):
         # Cria a tabela dos processos, exibindo o ID, usuário, Nome e Status de cada um
         self.table = ttk.Treeview(self.tabview.tab("Processos"), columns=("Num", "ID", "Usuário", "Nome", "Status"), show="headings")
         self.table.column("ID", anchor="center", width=216)
@@ -199,7 +225,7 @@ class View(customtkinter.CTk):
                 self.table.insert(process_id, "end", values=("", thread['ID'], thread['Usuário'], thread['Nome'], thread['Status']))
             self.table.item(process_id, open=False) 
 
-        self.table.bind("<Button-1>", lambda event, p_mem=process_memory, pag_us=page_usage, p_details=process_details: self.open_popup(event, p_mem, pag_us, p_details))
+        self.table.bind("<Button-1>", lambda event, p_mem=process_memory, pag_us=page_usage, p_details=process_details, p_resources=process_resources: self.open_popup(event, p_mem, pag_us, p_details, p_resources))
         
         self.table.grid(row=0, column=0, padx=0, pady=0, sticky="nsew")
 

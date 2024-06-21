@@ -16,13 +16,13 @@ class Controller:
         processes, threads = self.model.get_processes_and_threads()
         process_memory = self.model.get_all_process_memory()
         page_usage = self.model.get_all_page_usage()
-        process_details = self.model.get_all_process_details()
+        process_details, process_resources = self.model.get_all_process_details()
         partitions = self.model.disk_partitions_info()
         directory_tree = self.model.read_directory("/", 0)
 
         # Cria as abas Memória, Dados globais e Processos, definidas na view, passando os dados trazidos do model
         self.view.memory_tab(meminfo)
-        self.view.process_tab(processes, threads, process_memory, page_usage, process_details)
+        self.view.process_tab(processes, threads, process_memory, page_usage, process_details, process_resources)
         self.view.global_data_tab()
         self.view.files_tab(partitions)
         self.view.directory_tab(directory_tree)

@@ -7,6 +7,23 @@ import os
 import os.path
 import datetime
 
+import ctypes
+import ctypes.util
+
+
+# Constants for system calls
+O_RDONLY = 0
+
+class Dirent(ctypes.Structure):
+    _fields_ = [
+        ("d_ino", ctypes.c_ulong),
+        ("d_off", ctypes.c_ulong),
+        ("d_reclen", ctypes.c_ushort),
+        ("d_type", ctypes.c_ubyte),
+        ("d_name", ctypes.c_char * 256)
+    ]
+
+
 class Model:
     def __init__(self):
         # Inicializa as variáveis prev_idle, prev_total, total_processes e total_threads
@@ -14,6 +31,23 @@ class Model:
         self.total_processes = 0
         self.total_threads = 0
         self.max_depth = 3
+
+
+        # Load the libc library
+        self.libc = ctypes.CDLL(ctypes.util.find_library('c'))
+
+        # Define system call wrappers
+        self.opendir = self.libc.opendir
+        self.opendir.restype = ctypes.POINTER(ctypes.c_void_p)
+        self.opendir.argtypes = [ctypes.c_char_p]
+
+        self.readdir = self.libc.readdir
+        self.readdir.restype = ctypes.POINTER(Dirent)
+        self.readdir.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
+
+        self.closedir = self.libc.closedir
+        self.closedir.restype = ctypes.c_int
+        self.closedir.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
 
     # Função que pega as informções da memória no /proc/meminfo que serão utilizadas posteriormente na função de crição da tela de memória na View
     def get_memory_info(self):
@@ -230,6 +264,7 @@ class Model:
 
     # Pega as informações detalhas de um processo específico de acordo com seu PID
     def get_process_details(self, pid):
+        
         process_details = {}
         try:
             # Lê vários arquivos dentro do diretório /proc/{pid} para obter os detalhes do processo
@@ -247,20 +282,25 @@ class Model:
             pass  
         return process_details
 
-    # Pega as informações detalhas de cada processo
+    # Pega as informações detalhas de cada processo e todas as informações dos recursos abertos/alocados por cada processo
     def get_all_process_details(self):
         all_process_details = {}
+        all_process_resources = {}
         try:
             # Itera sobre todos os diretórios em /proc
             for pid_dir in os.listdir('/proc'):
                 if pid_dir.isdigit(): 
                     pid = pid_dir
+                    print(pid)
                     process_details = self.get_process_details(pid)
+                    process_resources = self.get_process_resources(pid)
                     if process_details:
                         all_process_details[pid] = process_details
+                    if process_resources:
+                        all_process_resources[pid] = process_resources
         except Exception as e:
             pass
-        return all_process_details
+        return all_process_details, all_process_resources
 
     # Converte bytes para gigabytes.
     def bytes_to_gb(self, bytes):
@@ -411,7 +451,102 @@ class Model:
         last_modified_datetime = datetime.datetime.fromtimestamp(last_modified_timestamp)
         return last_modified_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
+    # Pega as informações dos recursos abertos/alocados por cada processo
+    def get_process_resources(self, pid):
+        process_resources = {
+            'open_files': [],
+            'sockets': [],
+            'semaphores_mutexes': []
+        }
 
+        # Obtendo informações sobre arquivos abertos
+        try:
+            fd_dir = f'/proc/{pid}/fd'
+            if os.path.exists(fd_dir):
+                for fd in os.listdir(fd_dir):
+                    try:
+                        file_path = os.readlink(os.path.join(fd_dir, fd))
+                        process_resources['open_files'].append({
+                            'file_descriptor': fd,
+                            'file_path': file_path
+                        })
+                    except OSError as e:
+                        print(f"Erro ao ler arquivo aberto {fd}: {e}")
+        except Exception as e:
+            print(f"Erro ao acessar diretório de descritores de arquivo: {e}")
+
+        # Obtendo informações sobre sockets utilizando get_socket_details
+        try:
+            sockets = self.get_socket_details(pid)
+            process_resources['sockets'] = sockets
+        except Exception as e:
+            print(f"Erro ao obter detalhes dos sockets: {e}")
+
+        # Obtendo informações sobre semáforos e mutexes do status do processo
+        try:
+            status_file_path = f'/proc/{pid}/status'
+            if os.path.exists(status_file_path):
+                with open(status_file_path, 'r') as status_file:
+                    for line in status_file:
+                        if 'semaphores' in line.lower() or 'mutex' in line.lower():
+                            process_resources['semaphores_mutexes'].append(line.strip())
+        except FileNotFoundError:
+            pass  # Se o arquivo /proc/{pid}/status não existir, simplesmente ignorar
+        except Exception as e:
+            print(f"Erro ao ler status do processo {pid}: {e}")
+
+        # Obtendo informações de locks do processo
+        try:
+            locks_file_path = f'/proc/{pid}/locks'
+            if os.path.exists(locks_file_path):
+                with open(locks_file_path, 'r') as locks_file:
+                    for line in locks_file:
+                        process_resources['semaphores_mutexes'].append(line.strip())
+        except FileNotFoundError:
+            pass  # Se o arquivo /proc/{pid}/locks não existir, simplesmente ignorar
+        except Exception as e:
+            print(f"Erro ao ler locks do processo {pid}: {e}")
+
+        return process_resources
+
+    #Pega os detalhes dos sockets
+    def get_socket_details(self, pid):
+        sockets = []
+
+        # Lê sockets TCP
+        self.read_socket_file(f'/proc/{pid}/net/tcp', sockets, 'TCP')
+
+        # Lê sockets UDP 
+        self.read_socket_file(f'/proc/{pid}/net/udp', sockets, 'UDP')
+
+        return sockets
+
+    # Lê os arquivos dos sockets
+    def read_socket_file(self, file_path, sockets, socket_type):
+        try:
+            with open(file_path, 'r') as f:
+                next(f)
+                for line in f:
+                    parts = line.split()
+                    local_address = self.parse_ip_port(parts[1])
+                    remote_address = self.parse_ip_port(parts[2])
+                    inode = parts[9]
+                    sockets.append({
+                        'type': socket_type,
+                        'local_address': local_address,
+                        'remote_address': remote_address,
+                        'inode': inode
+                    })
+        except FileNotFoundError:
+            pass
+    
+    # Converte de um endereço IP e uma porta de um formato hexadecimal (como são representados em /proc/net/tcp e /proc/net/udp) 
+    # para decimal.
+    def parse_ip_port(self, ip_port):
+        ip, port = ip_port.split(':')
+        ip = '.'.join([str(int(ip[i:i+2], 16)) for i in range(0, len(ip), 2)])
+        port = str(int(port, 16))
+        return f'{ip}:{port}'
 
 
 
