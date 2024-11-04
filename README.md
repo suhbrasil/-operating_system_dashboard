@@ -1,5 +1,8 @@
 # Linux System Dashboard
 
+![Process View](https://github.com/user-attachments/assets/e26dd466-01b9-488c-91ff-fea3fdcea3b8)
+
+
 This project is a dashboard for monitoring and visualizing system information on a Linux operating system. It provides insights into file systems, directory structures, and resources allocated by processes.
 
 ## Features
